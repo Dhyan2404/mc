@@ -13,7 +13,7 @@ public class VaultServerDataMixin {
     /**
      * Requirement: Ominous Vaults have no limit of spawning items; player can insert infinite keys in a single vault.
      */
-    @Inject(method = "hasRewardedPlayer", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "hasRewardedPlayer", at = @At("HEAD"), cancellable = true, require = 0)
     private void onHasRewardedPlayer(Player player, CallbackInfoReturnable<Boolean> cir) {
         cir.setReturnValue(false);
     }

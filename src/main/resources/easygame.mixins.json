@@ -4,8 +4,6 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
 		"AnvilMenuMixin",
-		"BreezeMixin",
-		"ExampleMixin",
 		"MerchantMenuAccessor",
 		"MerchantOfferMixin",
 		"MerchantResultSlotMixin",

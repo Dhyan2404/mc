@@ -24,7 +24,7 @@ public abstract class AnvilMenuMixin {
      * Requirement: Always exactly 1 level of XP needed for anvil combining/repairing/naming,
      * no extra XP, never "Too Expensive!".
      */
-    @Inject(method = "createResult", at = @At("RETURN"))
+    @Inject(method = "createResult", at = @At("RETURN"), require = 0)
     private void onCreateResult(CallbackInfo ci) {
         AnvilMenu menu = (AnvilMenu) (Object) this;
         ItemStack output = menu.getSlot(2).getItem();
@@ -39,7 +39,7 @@ public abstract class AnvilMenuMixin {
     /**
      * Ensure the player can take the item as long as they have at least 1 level of XP.
      */
-    @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true, require = 0)
     private void onMayPickup(Player player, boolean hasStack, CallbackInfoReturnable<Boolean> cir) {
         AnvilMenu menu = (AnvilMenu) (Object) this;
         ItemStack output = menu.getSlot(2).getItem();

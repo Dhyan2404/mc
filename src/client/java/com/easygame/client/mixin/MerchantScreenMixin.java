@@ -28,7 +28,7 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         super(menu, inventory, title);
     }
 
-    @Inject(method = "init", at = @At("RETURN"))
+    @Inject(method = "init", at = @At("RETURN"), require = 0)
     private void onInit(CallbackInfo ci) {
         // Cycle Trades Button: refreshes trades without breaking lectern/workstation
         Button cycleButton = Button.builder(Component.literal("⟳ Cycle"), btn -> {
@@ -50,7 +50,7 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         this.addRenderableWidget(trimButton);
     }
 
-    @Inject(method = "mouseClicked", at = @At("RETURN"))
+    @Inject(method = "mouseClicked", at = @At("RETURN"), require = 0)
     private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (this.saveTradeButton != null) {
             boolean isCurrentLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
