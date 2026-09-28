@@ -3,7 +3,8 @@
   "category": "misc",
   "ingredients": [
     "minecraft:diamond",
-    "minecraft:golden_apple"
+    "minecraft:diamond",
+    "minecraft:apple"
   ],
   "result": {
     "count": 1,
