@@ -1,7 +1,6 @@
 package com.easygame.client.mixin;
 
 import com.easygame.client.EasyGameClient;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
@@ -14,6 +13,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreen.class)
 public abstract class MerchantScreenMixin extends AbstractContainerScreen<MerchantMenu> {
@@ -50,16 +50,11 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         this.addRenderableWidget(trimButton);
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    private void onRender(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    @Inject(method = "mouseClicked", at = @At("RETURN"))
+    private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (this.saveTradeButton != null) {
             boolean isCurrentLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton.setMessage(Component.literal(isCurrentLocked ? "★ Saved" : "☆ Save"));
-        }
-
-        // Draw saved indicator if current selected trade is saved
-        if (EasyGameClient.INSTANCE.isLocked(this.shopItem)) {
-            guiGraphics.drawString(this.font, Component.literal("§6[LOCKED/SAVED]"), this.leftPos + 215, this.topPos - 16, 0xFFAA00, false);
         }
     }
 }
