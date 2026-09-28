@@ -141,7 +141,7 @@ public class TradeHelper {
 
         // 2. Maximum Level Enchanted Books (No book needed, only emeralds!)
         try {
-            var lookup = player.server.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+            var lookup = player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             List<Holder.Reference<Enchantment>> enchants = new ArrayList<>(lookup.listElements().toList());
             Collections.shuffle(enchants, random);
 

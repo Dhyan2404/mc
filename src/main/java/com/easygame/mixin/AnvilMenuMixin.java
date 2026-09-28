@@ -1,9 +1,9 @@
 package com.easygame.mixin;
 
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.*;
+import net.minecraft.world.inventory.AnvilMenu;
+import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,15 +14,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AnvilMenu.class)
-public abstract class AnvilMenuMixin extends ItemCombinerMenu {
+public abstract class AnvilMenuMixin {
 
     @Shadow
     @Final
     private DataSlot cost;
-
-    public AnvilMenuMixin(MenuType<?> menuType, int containerId, Inventory playerInventory, ContainerLevelAccess access) {
-        super(menuType, containerId, playerInventory, access);
-    }
 
     /**
      * Requirement: Always exactly 1 level of XP needed for anvil combining/repairing/naming,
@@ -30,7 +26,8 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
      */
     @Inject(method = "createResult", at = @At("RETURN"))
     private void onCreateResult(CallbackInfo ci) {
-        ItemStack output = this.resultSlots.getItem(0);
+        AnvilMenu menu = (AnvilMenu) (Object) this;
+        ItemStack output = menu.getSlot(2).getItem();
         if (!output.isEmpty()) {
             // Set XP cost strictly to 1 level
             this.cost.set(1);
@@ -44,7 +41,9 @@ public abstract class AnvilMenuMixin extends ItemCombinerMenu {
      */
     @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
     private void onMayPickup(Player player, boolean hasStack, CallbackInfoReturnable<Boolean> cir) {
-        if (!this.resultSlots.getItem(0).isEmpty()) {
+        AnvilMenu menu = (AnvilMenu) (Object) this;
+        ItemStack output = menu.getSlot(2).getItem();
+        if (!output.isEmpty()) {
             cir.setReturnValue(player.getAbilities().instabuild || player.experienceLevel >= 1);
         }
     }
