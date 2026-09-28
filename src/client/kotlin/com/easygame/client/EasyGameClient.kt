@@ -61,6 +61,10 @@ object EasyGameClient : ClientModInitializer {
         }
     }
 
+    fun clearLocks() {
+        lockedTradeIndices.clear()
+    }
+
     fun cycleTrades() {
         ClientPlayNetworking.send(CycleTradesPayload(lockedTradeIndices.toList(), false))
     }

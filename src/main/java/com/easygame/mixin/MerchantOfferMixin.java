@@ -56,6 +56,50 @@ public abstract class MerchantOfferMixin {
         cir.setReturnValue(ItemStack.EMPTY);
     }
 
+    @Inject(method = "hasCostB", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onHasCostB(CallbackInfoReturnable<Boolean> cir) {
+        cir.setReturnValue(false);
+    }
+
+    /**
+     * Requirement: Fletcher Trade Customization:
+     * Sell: 1 Stick -> 1 Emerald (overrides 32 sticks -> 1 emerald).
+     */
+    @Inject(method = "getBaseCostA", at = @At("RETURN"), cancellable = true, require = 0)
+    private void onGetBaseCostA(CallbackInfoReturnable<ItemCost> cir) {
+        ItemCost original = cir.getReturnValue();
+        if (original != null && original.item().value() == Items.STICK && this.getResult().is(Items.EMERALD)) {
+            cir.setReturnValue(new ItemCost(Items.STICK, 1));
+        }
+    }
+
+    @Inject(method = "getCostA", at = @At("RETURN"), cancellable = true, require = 0)
+    private void onGetCostA(CallbackInfoReturnable<ItemStack> cir) {
+        ItemStack original = cir.getReturnValue();
+        if (original != null && original.is(Items.STICK) && this.getResult().is(Items.EMERALD)) {
+            ItemStack singleStick = original.copy();
+            singleStick.setCount(1);
+            cir.setReturnValue(singleStick);
+        }
+    }
+
+    @Inject(method = "getItemCostA", at = @At("RETURN"), cancellable = true, require = 0)
+    private void onGetItemCostA(CallbackInfoReturnable<ItemCost> cir) {
+        ItemCost original = cir.getReturnValue();
+        if (original != null && original.item().value() == Items.STICK && this.getResult().is(Items.EMERALD)) {
+            cir.setReturnValue(new ItemCost(Items.STICK, 1));
+        }
+    }
+
+    /**
+     * Requirement: Trade XP Override:
+     * Set vanilla trade XP drops to 0 so the 3 full levels given on trade take strictly overrides default XP.
+     */
+    @Inject(method = "getXp", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onGetXp(CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(0);
+    }
+
     /**
      * Requirement: Only max level of enchantment trades (Sharpness 5, Unbreaking 3, etc.).
      */

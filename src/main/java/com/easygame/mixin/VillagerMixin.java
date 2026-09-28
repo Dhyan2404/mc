@@ -1,0 +1,24 @@
+package com.easygame.mixin;
+
+import com.easygame.trade.TradeHelper;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.item.trading.MerchantOffers;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+@Mixin(Villager.class)
+public class VillagerMixin {
+
+    @Inject(method = "updateTrades", at = @At("RETURN"), require = 0)
+    private void onUpdateTrades(CallbackInfo ci) {
+        TradeHelper.customizeVillagerOffers((Villager) (Object) this);
+    }
+
+    @Inject(method = "getOffers", at = @At("RETURN"), require = 0)
+    private void onGetOffers(CallbackInfoReturnable<MerchantOffers> cir) {
+        TradeHelper.customizeVillagerOffers((Villager) (Object) this);
+    }
+}

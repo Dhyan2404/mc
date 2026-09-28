@@ -5,6 +5,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MerchantMenu;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,7 +33,10 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         Component title = this.getTitle();
         if (title != null) {
             String name = title.getString().toLowerCase();
-            return name.contains("toolsmith");
+            if (name.contains("toolsmith")) return true;
+            if (title.getContents() instanceof TranslatableContents translatable) {
+                return translatable.getKey().toLowerCase().contains("toolsmith");
+            }
         }
         return false;
     }
@@ -62,5 +66,18 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
             }).bounds(this.leftPos + 142, this.topPos - 22, 65, 20).build();
             this.addRenderableWidget(trimButton);
         }
+    }
+
+    @Inject(method = "containerTick", at = @At("RETURN"), require = 0)
+    private void onContainerTick(CallbackInfo ci) {
+        if (this.saveTradeButton != null) {
+            boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
+            this.saveTradeButton.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
+        }
+    }
+
+    @Inject(method = "onClose", at = @At("HEAD"), require = 0)
+    private void onScreenClose(CallbackInfo ci) {
+        EasyGameClient.INSTANCE.clearLocks();
     }
 }

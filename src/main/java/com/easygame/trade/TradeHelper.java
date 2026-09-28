@@ -6,7 +6,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -107,7 +108,7 @@ public class TradeHelper {
         }
 
         int targetTradeCount = Math.max(2, currentOffers.size());
-        List<MerchantOffer> freshOffers = generateFreshTrades(player, targetTradeCount);
+        List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, targetTradeCount);
 
         MerchantOffers finalOffers = new MerchantOffers();
         int freshIdx = 0;
@@ -129,17 +130,77 @@ public class TradeHelper {
     }
 
     /**
-     * Generates fresh, maximum-tier trades (Max enchantment books with emerald-only cost, fletcher stick trades, etc.)
+     * Ensures Fletcher trades strictly follow:
+     * - Sell: 1 Stick -> 1 Emerald
+     * - Buy: 1 Stick -> 2 Apples
+     * - Removes any conflicting stick trades (e.g. 32 sticks -> 1 emerald)
      */
-    private static List<MerchantOffer> generateFreshTrades(ServerPlayer player, int count) {
+    public static void customizeVillagerOffers(Villager villager) {
+        MerchantOffers offers = villager.getOffers();
+        if (offers == null) return;
+
+        // Maximize all enchantments
+        for (MerchantOffer offer : offers) {
+            maximizeEnchantments(offer.getResult());
+        }
+
+        if (villager.getVillagerData().getProfession() == VillagerProfession.FLETCHER) {
+            // Remove conflicting stick trades
+            offers.removeIf(offer -> {
+                ItemStack cost = offer.getCostA();
+                ItemStack res = offer.getResult();
+                if (cost.is(Items.STICK) && res.is(Items.EMERALD)) return true;
+                if (cost.is(Items.STICK) && res.is(Items.APPLE)) return true;
+                return false;
+            });
+
+            // 1 Stick -> 1 Emerald
+            offers.add(0, new MerchantOffer(
+                    new ItemCost(Items.STICK, 1),
+                    Optional.empty(),
+                    new ItemStack(Items.EMERALD, 1),
+                    0, 999999, 2, 0.05f
+            ));
+
+            // 1 Stick -> 2 Apples
+            offers.add(1, new MerchantOffer(
+                    new ItemCost(Items.STICK, 1),
+                    Optional.empty(),
+                    new ItemStack(Items.APPLE, 2),
+                    0, 999999, 2, 0.05f
+            ));
+        }
+    }
+
+    /**
+     * Generates fresh trades depending on villager profession.
+     */
+    private static List<MerchantOffer> generateFreshTrades(Merchant trader, ServerPlayer player, int count) {
         List<MerchantOffer> list = new ArrayList<>();
         Random random = new Random();
 
-        // 1. Fletcher sticks to emerald & apples
-        list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.EMERALD, 1), 0, 999999, 2, 0.05f));
-        list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.APPLE, 2), 0, 999999, 2, 0.05f));
+        if (trader instanceof Villager villager) {
+            VillagerProfession prof = villager.getVillagerData().getProfession();
 
-        // 2. Maximum Level Enchanted Books (No book needed, only emeralds!)
+            if (prof == VillagerProfession.FLETCHER) {
+                list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.EMERALD, 1), 0, 999999, 2, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.APPLE, 2), 0, 999999, 2, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.BOW, 1), 0, 999999, 2, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 3), Optional.empty(), new ItemStack(Items.CROSSBOW, 1), 0, 999999, 2, 0.05f));
+                return list;
+            }
+
+            if (prof == VillagerProfession.TOOLSMITH) {
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_PICKAXE, 1), 0, 999999, 5, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_AXE, 1), 0, 999999, 5, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_SHOVEL, 1), 0, 999999, 5, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_HOE, 1), 0, 999999, 5, 0.05f));
+                return list;
+            }
+        }
+
+        // Default & Librarian: Max level enchanted books costing strictly emeralds only (no regular books!)
         try {
             var lookup = player.level().registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
             List<Holder.Reference<Enchantment>> enchants = new ArrayList<>(lookup.listElements().toList());
@@ -157,7 +218,7 @@ public class TradeHelper {
                 list.add(new MerchantOffer(new ItemCost(Items.EMERALD, emeraldCost), Optional.empty(), book, 0, 999999, 5, 0.05f));
             }
         } catch (Exception e) {
-            // Fallback emerald trade
+            // Fallback
             list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.BOOKSHELF, 1), 0, 999999, 2, 0.05f));
         }
 
@@ -165,10 +226,14 @@ public class TradeHelper {
     }
 
     private static void syncOffers(Merchant trader, ServerPlayer player) {
+        int level = 1;
+        if (trader instanceof Villager villager) {
+            level = villager.getVillagerData().getLevel();
+        }
         player.sendMerchantOffers(
                 player.containerMenu.containerId,
                 trader.getOffers(),
-                1,
+                level,
                 trader.getVillagerXp(),
                 trader.showProgressBar(),
                 trader.canRestock()
