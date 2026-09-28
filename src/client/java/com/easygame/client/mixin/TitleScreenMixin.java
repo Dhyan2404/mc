@@ -18,7 +18,7 @@ public abstract class TitleScreenMixin extends Screen {
     @Unique
     private static int lastTitleFps = -1;
     @Unique
-    private static String cachedTitleFpsText = "§f⚡ FPS: §a0";
+    private static String cachedTitleFpsText = "§a0 §7FPS";
     @Unique
     private static int cachedTitleFpsColor = 0xFF00E676;
     @Unique
@@ -39,27 +39,21 @@ public abstract class TitleScreenMixin extends Screen {
         if (fps != lastTitleFps || cachedTitleFpsWidth == 0) {
             lastTitleFps = fps;
             String fpsColor = fps >= 60 ? "§a" : (fps >= 30 ? "§e" : "§c");
-            cachedTitleFpsText = "§f⚡ FPS: " + fpsColor + fps;
+            cachedTitleFpsText = "§f⚡ " + fpsColor + fps + " §7FPS";
             cachedTitleFpsColor = fps >= 60 ? 0xFF00E676 : (fps >= 30 ? 0xFFFFD600 : 0xFFFF1744);
             cachedTitleFpsWidth = font.width(cachedTitleFpsText);
         }
 
-        int fpsBadgePadding = 6;
-        int fpsX = this.width - cachedTitleFpsWidth - 10;
-        int fpsY = 6;
-        int fpsRight = this.width - 4;
-        int fpsBottom = fpsY + font.lineHeight + 4;
-        int fpsLeft = fpsX - fpsBadgePadding;
+        int fpsPaddingH = 4;
+        int fpsX = this.width - cachedTitleFpsWidth - 6;
+        int fpsY = 4;
+        int fpsRight = this.width - 3;
+        int fpsBottom = fpsY + font.lineHeight + 1;
+        int fpsLeft = fpsX - fpsPaddingH;
 
-        // Render sleek glass badge for FPS
-        extractor.fill(fpsLeft, fpsY - 2, fpsRight, fpsBottom, 0x880E141E);
-        // Left accent indicator
-        extractor.fill(fpsLeft, fpsY - 2, fpsLeft + 2, fpsBottom, cachedTitleFpsColor);
-        // Top specular highlight
-        extractor.fill(fpsLeft, fpsY - 2, fpsRight, fpsY - 1, 0x33FFFFFF);
-        // Bottom shadow
-        extractor.fill(fpsLeft, fpsBottom - 1, fpsRight, fpsBottom, 0x33000000);
-
+        // Render compact glass badge for FPS
+        extractor.fill(fpsLeft, fpsY - 1, fpsRight, fpsBottom, 0x770E141E);
+        extractor.fill(fpsLeft, fpsY - 1, fpsLeft + 1, fpsBottom, cachedTitleFpsColor);
         extractor.text(font, cachedTitleFpsText, fpsX, fpsY, 0xFFFFFFFF, true);
     }
 }
