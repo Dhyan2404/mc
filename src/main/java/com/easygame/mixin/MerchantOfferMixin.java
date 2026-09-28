@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Optional;
@@ -20,7 +21,7 @@ public abstract class MerchantOfferMixin {
     public abstract ItemStack getResult();
 
     /**
-     * Requirement: Unlimited trades (villagers never run out of stock / lock trades).
+     * Requirement: Unlimited trades (villagers never run out of stock / no trade limits or caps).
      */
     @Inject(method = "hasNoUsesLeft", at = @At("HEAD"), cancellable = true, require = 0)
     private void onHasNoUsesLeft(CallbackInfoReturnable<Boolean> cir) {
@@ -37,9 +38,34 @@ public abstract class MerchantOfferMixin {
         cir.setReturnValue(false);
     }
 
+    @Inject(method = "getUses", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onGetUses(CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(0);
+    }
+
+    @Inject(method = "increaseUses", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onIncreaseUses(CallbackInfo ci) {
+        ci.cancel();
+    }
+
+    @Inject(method = "setToOutOfStock", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onSetToOutOfStock(CallbackInfo ci) {
+        ci.cancel();
+    }
+
     @Inject(method = "getMaxUses", at = @At("HEAD"), cancellable = true, require = 0)
     private void onGetMaxUses(CallbackInfoReturnable<Integer> cir) {
         cir.setReturnValue(999999);
+    }
+
+    @Inject(method = "getDemand", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onGetDemand(CallbackInfoReturnable<Integer> cir) {
+        cir.setReturnValue(0);
+    }
+
+    @Inject(method = "updateDemand", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onUpdateDemand(CallbackInfo ci) {
+        ci.cancel();
     }
 
     /**
