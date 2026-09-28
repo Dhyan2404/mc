@@ -1,5 +1,6 @@
 package com.easygame.mixin;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.monster.breeze.Breeze;
 import net.minecraft.world.item.ItemStack;
@@ -18,8 +19,8 @@ public class BreezeMixin {
     @Inject(method = "die", at = @At("HEAD"))
     private void onDie(DamageSource damageSource, CallbackInfo ci) {
         Breeze breeze = (Breeze) (Object) this;
-        if (!breeze.level().isClientSide()) {
-            breeze.spawnAtLocation(new ItemStack(Items.OMINOUS_TRIAL_KEY, 10));
+        if (breeze.level() instanceof ServerLevel serverLevel) {
+            breeze.spawnAtLocation(serverLevel, new ItemStack(Items.OMINOUS_TRIAL_KEY, 10));
         }
     }
 }
