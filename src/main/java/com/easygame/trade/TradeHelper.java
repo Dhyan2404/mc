@@ -6,8 +6,8 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -144,7 +144,7 @@ public class TradeHelper {
             maximizeEnchantments(offer.getResult());
         }
 
-        if (villager.getVillagerData().getProfession() == VillagerProfession.FLETCHER) {
+        if (villager.getVillagerData().profession().is(VillagerProfession.FLETCHER)) {
             // Remove conflicting stick trades
             offers.removeIf(offer -> {
                 ItemStack cost = offer.getCostA();
@@ -180,9 +180,7 @@ public class TradeHelper {
         Random random = new Random();
 
         if (trader instanceof Villager villager) {
-            VillagerProfession prof = villager.getVillagerData().getProfession();
-
-            if (prof == VillagerProfession.FLETCHER) {
+            if (villager.getVillagerData().profession().is(VillagerProfession.FLETCHER)) {
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.EMERALD, 1), 0, 999999, 2, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.APPLE, 2), 0, 999999, 2, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
@@ -191,7 +189,7 @@ public class TradeHelper {
                 return list;
             }
 
-            if (prof == VillagerProfession.TOOLSMITH) {
+            if (villager.getVillagerData().profession().is(VillagerProfession.TOOLSMITH)) {
                 list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_PICKAXE, 1), 0, 999999, 5, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_AXE, 1), 0, 999999, 5, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.DIAMOND_SHOVEL, 1), 0, 999999, 5, 0.05f));
@@ -228,7 +226,7 @@ public class TradeHelper {
     private static void syncOffers(Merchant trader, ServerPlayer player) {
         int level = 1;
         if (trader instanceof Villager villager) {
-            level = villager.getVillagerData().getLevel();
+            level = villager.getVillagerData().level();
         }
         player.sendMerchantOffers(
                 player.containerMenu.containerId,

@@ -1,7 +1,8 @@
 package com.easygame.mixin;
 
 import com.easygame.trade.TradeHelper;
-import net.minecraft.world.entity.npc.Villager;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.item.trading.MerchantOffers;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -13,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class VillagerMixin {
 
     @Inject(method = "updateTrades", at = @At("RETURN"), require = 0)
-    private void onUpdateTrades(CallbackInfo ci) {
+    private void onUpdateTrades(ServerLevel serverLevel, CallbackInfo ci) {
         TradeHelper.customizeVillagerOffers((Villager) (Object) this);
     }
 
