@@ -7,12 +7,17 @@ A high-performance quality-of-life and enhancement mod designed to streamline tr
 ### 1. Unlimited Villager Trading
 - Villagers never lock out trades or run out of stock.
 - Trade limits are removed so you can trade indefinitely.
+- **Every trade awards 3 full bars/levels of XP** to the player every single time!
 
 ### 2. Maximum Enchantment Levels Only
 - All enchanted book trades and enchanted equipment from villagers are guaranteed to be at their absolute maximum tier (e.g., **Sharpness V**, **Efficiency V**, **Unbreaking III**, **Fortune III**, **Protection IV**, **Mending I**).
 - No lower tier enchants (I, II, III) from trading.
 
-### 3. Emeralds Only for Enchanted Books
+### 3. Anvil Repair & Combining (1 XP Level Always)
+- Combining items, applying enchanted books, renaming, and repairing in an anvil **always costs strictly 1 level of XP**.
+- No extra XP needed, prior work penalty is removed, and items will **never say "Too Expensive!"**.
+
+### 4. Emeralds Only for Enchanted Books
 - Librarians no longer require a regular Book (`minecraft:book`) to trade for Enchanted Books.
 - You can trade directly with emeralds only!
 
