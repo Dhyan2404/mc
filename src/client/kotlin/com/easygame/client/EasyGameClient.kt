@@ -18,7 +18,7 @@ object EasyGameClient : ClientModInitializer {
             // Check stored enchantments (Enchanted Books)
             stack.get(DataComponents.STORED_ENCHANTMENTS)?.keySet()?.forEach { holder ->
                 holder.unwrapKey().ifPresent { key ->
-                    val path = key.location().path
+                    val path = key.identifier().toString().substringAfterLast(':')
                     if (addedKeys.add(path)) {
                         val desc = EnchantmentDescriptions.getDescription(path)
                         if (desc != null) {
@@ -34,7 +34,7 @@ object EasyGameClient : ClientModInitializer {
             // Check item enchantments (Swords, Bows, Armor, Tools)
             stack.get(DataComponents.ENCHANTMENTS)?.keySet()?.forEach { holder ->
                 holder.unwrapKey().ifPresent { key ->
-                    val path = key.location().path
+                    val path = key.identifier().toString().substringAfterLast(':')
                     if (addedKeys.add(path)) {
                         val desc = EnchantmentDescriptions.getDescription(path)
                         if (desc != null) {
