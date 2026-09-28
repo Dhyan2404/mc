@@ -49,38 +49,64 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
 
     @Inject(method = "init", at = @At("RETURN"), require = 0)
     private void onInit(CallbackInfo ci) {
-        // Cycle Trades Button: refreshes trades without breaking lectern/workstation
-        Button cycleButton = Button.builder(Component.literal("§a⟳ §fCycle"), btn -> {
-            EasyGameClient.INSTANCE.cycleTrades();
-        })
-        .bounds(this.leftPos + 4, this.topPos - 22, 62, 20)
-        .tooltip(Tooltip.create(Component.literal("§aCycle Trades§7: Refreshes villager trades instantly without breaking workstation.")))
-        .build();
-        this.addRenderableWidget(cycleButton);
+        // Hide the inventory label so the buttons fit cleanly inside the box without text overlap
+        this.inventoryLabelY = -1000;
 
-        // Lock / Save Trade Button: marks current trade so it is preserved when cycling
-        boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
-        this.saveTradeButton = Button.builder(
-                Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
-                btn -> {
-                    boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
-                    btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
-                }
-        )
-        .bounds(this.leftPos + 70, this.topPos - 22, 68, 20)
-        .tooltip(Tooltip.create(Component.literal("§eLock Trade§7: Protects this trade from being replaced during cycling.")))
-        .build();
-        this.addRenderableWidget(this.saveTradeButton);
-
-        // Armor Trims Button: rendered STRICTLY when interacting with a Toolsmith
         if (this.isToolsmith()) {
+            // Cycle Trades Button inside the box
+            Button cycleButton = Button.builder(Component.literal("§a⟳ §fCycle"), btn -> {
+                EasyGameClient.INSTANCE.cycleTrades();
+            })
+            .bounds(this.leftPos + 107, this.topPos + 58, 50, 20)
+            .tooltip(Tooltip.create(Component.literal("§aCycle Trades§7: Refreshes villager trades instantly without breaking workstation.")))
+            .build();
+            this.addRenderableWidget(cycleButton);
+
+            // Lock / Save Trade Button inside the box
+            boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
+            this.saveTradeButton = Button.builder(
+                    Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
+                    btn -> {
+                        boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
+                        btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                    }
+            )
+            .bounds(this.leftPos + 161, this.topPos + 58, 54, 20)
+            .tooltip(Tooltip.create(Component.literal("§eLock Trade§7: Protects this trade from being replaced during cycling.")))
+            .build();
+            this.addRenderableWidget(this.saveTradeButton);
+
+            // Armor Trims Button inside the box
             Button trimButton = Button.builder(Component.literal("§b🛡 §fTrims"), btn -> {
                 EasyGameClient.INSTANCE.requestArmorTrims();
             })
-            .bounds(this.leftPos + 142, this.topPos - 22, 64, 20)
+            .bounds(this.leftPos + 219, this.topPos + 58, 49, 20)
             .tooltip(Tooltip.create(Component.literal("§bArmor Trims§7: Adds all 18 rare Armor Trims to Toolsmith trades.")))
             .build();
             this.addRenderableWidget(trimButton);
+        } else {
+            // Cycle Trades Button positioned inside the box (between trade slots and inventory)
+            Button cycleButton = Button.builder(Component.literal("§a⟳ §fCycle"), btn -> {
+                EasyGameClient.INSTANCE.cycleTrades();
+            })
+            .bounds(this.leftPos + 110, this.topPos + 58, 74, 20)
+            .tooltip(Tooltip.create(Component.literal("§aCycle Trades§7: Refreshes villager trades instantly without breaking workstation.")))
+            .build();
+            this.addRenderableWidget(cycleButton);
+
+            // Lock / Save Trade Button positioned inside the box (between trade slots and inventory)
+            boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
+            this.saveTradeButton = Button.builder(
+                    Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
+                    btn -> {
+                        boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
+                        btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                    }
+            )
+            .bounds(this.leftPos + 188, this.topPos + 58, 80, 20)
+            .tooltip(Tooltip.create(Component.literal("§eLock Trade§7: Protects this trade from being replaced during cycling.")))
+            .build();
+            this.addRenderableWidget(this.saveTradeButton);
         }
     }
 
