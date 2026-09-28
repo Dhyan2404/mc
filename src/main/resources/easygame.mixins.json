@@ -4,6 +4,9 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
 		"AnvilMenuMixin",
+		"CommandNodeAccessor",
+		"HopperBlockEntityAccessor",
+		"HopperBlockEntityMixin",
 		"MerchantMenuAccessor",
 		"MerchantOfferMixin",
 		"MerchantResultSlotMixin",

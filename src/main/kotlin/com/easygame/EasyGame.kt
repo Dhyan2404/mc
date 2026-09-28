@@ -1,9 +1,12 @@
 package com.easygame
 
+import com.easygame.command.EasyHopperCommand
+import com.easygame.command.TeleportSurvivalHelper
 import com.easygame.mixin.MerchantMenuAccessor
 import com.easygame.network.CycleTradesPayload
 import com.easygame.trade.TradeHelper
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
@@ -20,7 +23,7 @@ object EasyGame : ModInitializer {
     private val LOGGER = LoggerFactory.getLogger(MOD_ID)
 
     override fun onInitialize() {
-        LOGGER.info("EasyGame initializing: unlimited trades, max enchants, trade cycling, trial chamber boosts active!")
+        LOGGER.info("EasyGame initializing: unlimited trades, max enchants, trade cycling, trial chamber boosts, insta hoppers, survival /tp active!")
 
         // Register custom network payload using serverboundPlay()
         PayloadTypeRegistry.serverboundPlay().register(CycleTradesPayload.TYPE, CycleTradesPayload.STREAM_CODEC)
@@ -41,6 +44,12 @@ object EasyGame : ModInitializer {
                     }
                 }
             }
+        }
+
+        // Commands: /easyhopper and allow /tp in survival
+        CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
+            EasyHopperCommand.register(dispatcher)
+            TeleportSurvivalHelper.allowInSurvival(dispatcher)
         }
 
         // Breeze drops 10 Ominous Trial Keys on death

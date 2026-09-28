@@ -30,6 +30,9 @@ A complete, production-ready quality-of-life and gameplay overhaul mod for **Min
   - Interactive toggle button in the trading GUI dynamically linked to the currently selected trade offer.
   - When an offer is marked as **Saved / Locked**, cycling the trade pool regenerates all unlocked slots while preserving locked trades completely untouched.
   - Cleanly rerolls unlocked trades without corrupting villager NBT data, XP, or leveling progression.
+- **No Limits / No Caps:**
+  - `getUses()` locked to `0`, `increaseUses()` and `setToOutOfStock()` blocked, and restock limits eliminated.
+  - Demand-based price inflation and penalty increases are cancelled.
 
 ---
 
@@ -44,7 +47,22 @@ A complete, production-ready quality-of-life and gameplay overhaul mod for **Min
 
 ---
 
-### 4. Additional Enhancements
+### 4. Insta Hopper (64 Items/tick & Full Inventory/tick)
+- **Survival-Friendly Command:**
+  - While holding a Hopper (or looking at a placed Hopper block), run:
+    - `/easyhopper set` ➔ Sets the Hopper to **Insta Hopper (64 items per tick)**! (1,280 items transferred per second, 0 cooldown).
+    - `/easyhopper set inv` ➔ Sets the Hopper to **Insta Hopper (Full Inventory per tick)**! Moves entire container contents every tick.
+    - `/easyhopper clear` ➔ Resets the Hopper to standard vanilla behavior.
+  - Fully accessible in **Survival mode** without requiring OP or Cheats enabled.
+
+---
+
+### 5. Survival `/tp` Command
+- Allows the native Minecraft `/tp` and `/teleport` commands to be executed directly in **Survival mode** by all players without requiring OP permissions.
+
+---
+
+### 6. Additional Enhancements
 - **Maximum Enchantment Levels Only:**
   - All enchanted books and enchanted tools/armor offered by villagers are guaranteed to be at their maximum level (Sharpness V, Efficiency V, Unbreaking III, Protection IV, Fortune III, Mending I, etc.).
 - **Enchantment Tooltip Descriptions:**
@@ -67,8 +85,13 @@ minecraft mod/
 ├── src/
 │   ├── main/
 │   │   ├── java/com/easygame/
+│   │   │   ├── command/
+│   │   │   │   └── TeleportSurvivalHelper.java  # Bypasses /tp and /teleport permission requirements
 │   │   │   ├── mixin/
 │   │   │   │   ├── AnvilMenuMixin.java          # Flat 1 XP cost & removes prior-work penalty
+│   │   │   │   ├── CommandNodeAccessor.java     # Modifies Brigadier node requirements
+│   │   │   │   ├── HopperBlockEntityAccessor.java # Hopper invoker for setCooldown & tryMoveItems
+│   │   │   │   ├── HopperBlockEntityMixin.java  # Instant hopper tick injection
 │   │   │   │   ├── MerchantMenuAccessor.java    # Accessor for container trader
 │   │   │   │   ├── MerchantOfferMixin.java      # Emerald-only, single stick cost, unlimited uses
 │   │   │   │   ├── MerchantResultSlotMixin.java # Gives 3 full levels per trade
@@ -79,7 +102,9 @@ minecraft mod/
 │   │   │   └── trade/
 │   │   │       └── TradeHelper.java             # Core cycling logic, trim loading, lock preservation
 │   │   ├── kotlin/com/easygame/
-│   │   │   └── EasyGame.kt                      # Mod initializer, packet registry, Breeze drops
+│   │   │   ├── command/
+│   │   │   │   └── EasyHopperCommand.kt         # /easyhopper set and /easyhopper set inv implementation
+│   │   │   └── EasyGame.kt                      # Mod initializer, packet registry, command registry
 │   │   └── resources/
 │   │       ├── data/                            # Recipes and Trial Chamber loot tables
 │   │       ├── easygame.mixins.json             # Mixin configuration
