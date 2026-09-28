@@ -5,15 +5,13 @@ import net.minecraft.commands.CommandSourceStack
 import net.minecraft.commands.Commands
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
-import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.item.Items
-import net.minecraft.world.level.ClipContext
-import net.minecraft.world.level.block.entity.HopperBlockEntity
-import net.minecraft.world.phys.HitResult
 
 object EasyHopperCommand {
+
+    private val EASY_HOPPER_NAME: Component = Component.literal("§4Easy Hopper")
 
     fun register(dispatcher: CommandDispatcher<CommandSourceStack>) {
         val root = Commands.literal("easyhopper")
@@ -26,163 +24,164 @@ object EasyHopperCommand {
                 Commands.literal("set")
                     .requires { true }
                     .executes { ctx ->
-                        applyHopper(ctx.source, isInv = false)
+                        applyToHeld(ctx.source)
                     }
                     .then(
                         Commands.literal("inv")
                             .requires { true }
                             .executes { ctx ->
-                                applyHopper(ctx.source, isInv = true)
+                                applyToInventory(ctx.source)
                             }
                     )
-                    .then(
-                        Commands.literal("all")
-                            .requires { true }
-                            .executes { ctx ->
-                                applyHopper(ctx.source, isInv = true)
-                            }
-                    )
-                    .then(
-                        Commands.literal("64")
-                            .requires { true }
-                            .executes { ctx ->
-                                applyHopper(ctx.source, isInv = false)
-                            }
-                    )
+            )
+            .then(
+                Commands.literal("inv")
+                    .requires { true }
+                    .executes { ctx ->
+                        applyToInventory(ctx.source)
+                    }
             )
             .then(
                 Commands.literal("clear")
                     .requires { true }
                     .executes { ctx ->
-                        clearHopper(ctx.source)
+                        clearHeld(ctx.source)
                     }
+                    .then(
+                        Commands.literal("inv")
+                            .requires { true }
+                            .executes { ctx ->
+                                clearInventory(ctx.source)
+                            }
+                    )
             )
 
         dispatcher.register(root)
     }
 
-    private fun applyHopper(source: CommandSourceStack, isInv: Boolean): Int {
+    private fun applyToHeld(source: CommandSourceStack): Int {
         val player = source.player ?: run {
-            source.sendFailure(Component.literal("§cOnly players can configure hoppers!"))
+            source.sendFailure(Component.literal("§cOnly players can run this command!"))
             return 0
         }
 
-        val title = if (isInv) "§b✦ Insta Hopper (Full Inventory/tick)" else "§6✦ Insta Hopper (64/tick)"
-
-        // 1. Check held item in main hand or off hand
         val mainHand = player.mainHandItem
         val offHand = player.offhandItem
 
-        val heldHopper = when {
+        val held = when {
             mainHand.`is`(Items.HOPPER) -> mainHand
             offHand.`is`(Items.HOPPER) -> offHand
             else -> null
         }
 
-        if (heldHopper != null) {
-            heldHopper.set(DataComponents.CUSTOM_NAME, Component.literal(title))
-            player.level().playSound(
-                null,
-                player.blockPosition(),
-                if (isInv) SoundEvents.PLAYER_LEVELUP else SoundEvents.EXPERIENCE_ORB_PICKUP,
-                SoundSource.PLAYERS,
-                1.0f,
-                1.2f
-            )
-            source.sendSuccess(
-                { Component.literal("§a[EasyHopper] §fHeld Hopper configured to $title§a! Place it anywhere.") },
-                false
-            )
-            return 1
+        if (held == null) {
+            source.sendFailure(Component.literal("§c[EasyHopper] You must be holding a Hopper in your hand! (Use '/easyhopper set inv' to convert all hoppers in your inventory)"))
+            return 0
         }
 
-        // 2. Check if player is looking at a placed hopper block
-        val hit = raycastBlock(player, 5.0)
-        if (hit.type == HitResult.Type.BLOCK) {
-            val be = player.level().getBlockEntity(hit.blockPos)
-            if (be is HopperBlockEntity) {
-                be.customName = Component.literal(title)
-                be.setChanged()
-                player.level().playSound(
-                    null,
-                    hit.blockPos,
-                    if (isInv) SoundEvents.PLAYER_LEVELUP else SoundEvents.EXPERIENCE_ORB_PICKUP,
-                    SoundSource.BLOCKS,
-                    1.0f,
-                    1.2f
-                )
-                source.sendSuccess(
-                    { Component.literal("§a[EasyHopper] §fTargeted Hopper set to $title§a!") },
-                    false
-                )
-                return 1
+        held.set(DataComponents.CUSTOM_NAME, EASY_HOPPER_NAME)
+        player.level().playSound(
+            null,
+            player.blockPosition(),
+            SoundEvents.EXPERIENCE_ORB_PICKUP,
+            SoundSource.PLAYERS,
+            1.0f,
+            1.2f
+        )
+        source.sendSuccess(
+            { Component.literal("§4[Easy Hopper] §aApplied to held hopper! Name set to §4Easy Hopper §a(64 items/tick).") },
+            false
+        )
+        return 1
+    }
+
+    private fun applyToInventory(source: CommandSourceStack): Int {
+        val player = source.player ?: run {
+            source.sendFailure(Component.literal("§cOnly players can run this command!"))
+            return 0
+        }
+
+        var totalHoppers = 0
+        var totalStacks = 0
+
+        val inv = player.inventory
+        for (i in 0 until inv.containerSize) {
+            val stack = inv.getItem(i)
+            if (stack.`is`(Items.HOPPER)) {
+                stack.set(DataComponents.CUSTOM_NAME, EASY_HOPPER_NAME)
+                totalHoppers += stack.count
+                totalStacks++
             }
         }
 
-        source.sendFailure(
-            Component.literal("§c[EasyHopper] Please hold a Hopper in your hand or look at a placed Hopper to configure it!")
+        if (totalStacks == 0) {
+            source.sendFailure(Component.literal("§c[EasyHopper] No hoppers found in your inventory!"))
+            return 0
+        }
+
+        player.level().playSound(
+            null,
+            player.blockPosition(),
+            SoundEvents.PLAYER_LEVELUP,
+            SoundSource.PLAYERS,
+            1.0f,
+            1.2f
         )
-        return 0
+        source.sendSuccess(
+            { Component.literal("§4[Easy Hopper] §aConverted all §e$totalHoppers §ahopper(s) ($totalStacks stack(s)) in your inventory to §4Easy Hopper §a(64 items/tick)!") },
+            false
+        )
+        return 1
     }
 
-    private fun clearHopper(source: CommandSourceStack): Int {
+    private fun clearHeld(source: CommandSourceStack): Int {
         val player = source.player ?: return 0
         val mainHand = player.mainHandItem
         val offHand = player.offhandItem
 
-        val heldHopper = when {
+        val held = when {
             mainHand.`is`(Items.HOPPER) -> mainHand
             offHand.`is`(Items.HOPPER) -> offHand
             else -> null
         }
 
-        if (heldHopper != null) {
-            heldHopper.remove(DataComponents.CUSTOM_NAME)
-            source.sendSuccess({ Component.literal("§a[EasyHopper] Held Hopper reset to normal.") }, false)
+        if (held != null) {
+            held.remove(DataComponents.CUSTOM_NAME)
+            source.sendSuccess({ Component.literal("§a[EasyHopper] Held hopper reset to normal.") }, false)
             return 1
         }
 
-        val hit = raycastBlock(player, 5.0)
-        if (hit.type == HitResult.Type.BLOCK) {
-            val be = player.level().getBlockEntity(hit.blockPos)
-            if (be is HopperBlockEntity) {
-                be.customName = null
-                be.setChanged()
-                source.sendSuccess({ Component.literal("§a[EasyHopper] Targeted Hopper reset to normal.") }, false)
-                return 1
+        source.sendFailure(Component.literal("§c[EasyHopper] You must be holding a hopper to reset it."))
+        return 0
+    }
+
+    private fun clearInventory(source: CommandSourceStack): Int {
+        val player = source.player ?: return 0
+        var count = 0
+        val inv = player.inventory
+        for (i in 0 until inv.containerSize) {
+            val stack = inv.getItem(i)
+            if (stack.`is`(Items.HOPPER)) {
+                stack.remove(DataComponents.CUSTOM_NAME)
+                count++
             }
         }
-
-        source.sendFailure(Component.literal("§c[EasyHopper] Please hold a Hopper or look at a placed Hopper to reset."))
-        return 0
+        source.sendSuccess({ Component.literal("§a[EasyHopper] Reset $count hopper stack(s) in inventory.") }, false)
+        return 1
     }
 
     private fun sendHelp(source: CommandSourceStack) {
         source.sendSuccess(
             {
                 Component.literal(
-                    "§6=== EasyHopper Commands ===\n" +
-                    "§e/easyhopper set §7- Configure held or targeted hopper to 64 items/tick\n" +
-                    "§e/easyhopper set inv §7- Configure held or targeted hopper to Full Inventory/tick\n" +
-                    "§e/easyhopper clear §7- Reset hopper to vanilla behavior"
+                    "§4=== Easy Hopper Commands ===\n" +
+                    "§e/easyhopper set §7- Apply to held hopper only (§4Easy Hopper§7)\n" +
+                    "§e/easyhopper set inv §7- Apply to ALL hoppers in your inventory\n" +
+                    "§e/easyhopper clear §7- Reset held hopper\n" +
+                    "§e/easyhopper clear inv §7- Reset all hoppers in inventory"
                 )
             },
             false
-        )
-    }
-
-    private fun raycastBlock(player: ServerPlayer, maxDistance: Double): net.minecraft.world.phys.BlockHitResult {
-        val eyePos = player.eyePosition
-        val viewVec = player.getViewVector(1.0f)
-        val endPos = eyePos.add(viewVec.x * maxDistance, viewVec.y * maxDistance, viewVec.z * maxDistance)
-        return player.level().clip(
-            ClipContext(
-                eyePos,
-                endPos,
-                ClipContext.Block.OUTLINE,
-                ClipContext.Fluid.NONE,
-                player
-            )
         )
     }
 }

@@ -18,7 +18,7 @@ public abstract class HopperBlockEntityMixin {
     public abstract Component getCustomName();
 
     /**
-     * Requirement: Insta Hopper 64 item/tick or full inventory/tick.
+     * Requirement: Dark Red Easy Hopper: 64 items/tick instant transfer with 0 cooldown.
      */
     @Inject(method = "pushItemsTick", at = @At("RETURN"), require = 0)
     private static void onPushItemsTickReturn(Level level, BlockPos pos, BlockState state, HopperBlockEntity hopper, CallbackInfo ci) {
@@ -27,17 +27,15 @@ public abstract class HopperBlockEntityMixin {
         Component customName = hopper.getCustomName();
         if (customName == null) return;
 
-        String name = customName.getString();
-        boolean isInsta = name.contains("Insta Hopper") || name.contains("EasyHopper");
-        if (!isInsta) return;
-
-        boolean isFullInv = name.contains("Inventory") || name.contains("Full") || name.contains("inv");
-        int maxExtraCycles = isFullInv ? 255 : 63;
+        String name = customName.getString().toLowerCase();
+        boolean isEasyHopper = name.contains("easy hopper") || name.contains("easyhopper") || name.contains("insta hopper");
+        if (!isEasyHopper) return;
 
         HopperBlockEntityAccessor accessor = (HopperBlockEntityAccessor) hopper;
         accessor.easygame$setCooldown(0);
 
-        for (int i = 0; i < maxExtraCycles; i++) {
+        // Run up to 63 additional cycles (total 64 items per tick)
+        for (int i = 0; i < 63; i++) {
             boolean moved = HopperBlockEntityAccessor.easygame$tryMoveItems(
                     level,
                     pos,
