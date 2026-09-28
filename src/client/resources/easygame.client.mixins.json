@@ -5,7 +5,10 @@
 	"client": [
 		"MerchantScreenMixin",
 		"GuiMixin",
-		"TitleScreenMixin"
+		"TitleScreenMixin",
+		"WorldOpenFlowsMixin",
+		"ConfirmExperimentalFeaturesScreenMixin",
+		"BackupConfirmScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

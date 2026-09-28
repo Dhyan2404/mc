@@ -11,7 +11,8 @@
 		"MerchantOfferMixin",
 		"MerchantResultSlotMixin",
 		"VaultServerDataMixin",
-		"VillagerMixin"
+		"VillagerMixin",
+		"LevelSummaryMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
