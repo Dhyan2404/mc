@@ -143,9 +143,10 @@ public abstract class MerchantOfferMixin {
 
     /**
      * Requirement: Only max level of enchantment trades (Sharpness 5, Unbreaking 3, etc.).
+     * Maximized upon creation and assembly, avoiding expensive per-frame render overhead.
      */
-    @Inject(method = "getResult", at = @At("RETURN"), require = 0)
-    private void onGetResult(CallbackInfoReturnable<ItemStack> cir) {
+    @Inject(method = "assemble", at = @At("RETURN"), require = 0)
+    private void onAssemble(CallbackInfoReturnable<ItemStack> cir) {
         ItemStack stack = cir.getReturnValue();
         if (stack != null && !stack.isEmpty()) {
             TradeHelper.maximizeEnchantments(stack);

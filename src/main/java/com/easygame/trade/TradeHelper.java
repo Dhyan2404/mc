@@ -145,30 +145,40 @@ public class TradeHelper {
         }
 
         if (villager.getVillagerData().profession().is(VillagerProfession.FLETCHER)) {
-            // Remove conflicting stick trades
-            offers.removeIf(offer -> {
-                ItemStack cost = offer.getCostA();
-                ItemStack res = offer.getResult();
-                if (cost.is(Items.STICK) && res.is(Items.EMERALD)) return true;
-                if (cost.is(Items.STICK) && res.is(Items.APPLE)) return true;
-                return false;
-            });
+            boolean alreadyCustomized = false;
+            for (MerchantOffer offer : offers) {
+                if (offer.getCostA().is(Items.STICK) && offer.getCostA().getCount() == 1 && offer.getResult().is(Items.EMERALD)) {
+                    alreadyCustomized = true;
+                    break;
+                }
+            }
 
-            // 1 Stick -> 1 Emerald
-            offers.add(0, new MerchantOffer(
-                    new ItemCost(Items.STICK, 1),
-                    Optional.empty(),
-                    new ItemStack(Items.EMERALD, 1),
-                    0, 999999, 2, 0.05f
-            ));
+            if (!alreadyCustomized) {
+                // Remove conflicting stick trades
+                offers.removeIf(offer -> {
+                    ItemStack cost = offer.getCostA();
+                    ItemStack res = offer.getResult();
+                    if (cost.is(Items.STICK) && res.is(Items.EMERALD)) return true;
+                    if (cost.is(Items.STICK) && res.is(Items.APPLE)) return true;
+                    return false;
+                });
 
-            // 1 Stick -> 2 Apples
-            offers.add(1, new MerchantOffer(
-                    new ItemCost(Items.STICK, 1),
-                    Optional.empty(),
-                    new ItemStack(Items.APPLE, 2),
-                    0, 999999, 2, 0.05f
-            ));
+                // 1 Stick -> 1 Emerald
+                offers.add(0, new MerchantOffer(
+                        new ItemCost(Items.STICK, 1),
+                        Optional.empty(),
+                        new ItemStack(Items.EMERALD, 1),
+                        0, 999999, 2, 0.05f
+                ));
+
+                // 1 Stick -> 2 Apples
+                offers.add(1, new MerchantOffer(
+                        new ItemCost(Items.STICK, 1),
+                        Optional.empty(),
+                        new ItemStack(Items.APPLE, 2),
+                        0, 999999, 2, 0.05f
+                ));
+            }
         }
     }
 

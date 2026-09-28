@@ -68,9 +68,13 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         }
     }
 
+    @Unique
+    private int lastShopItem = -1;
+
     @Inject(method = "containerTick", at = @At("RETURN"), require = 0)
     private void onContainerTick(CallbackInfo ci) {
-        if (this.saveTradeButton != null) {
+        if (this.saveTradeButton != null && this.shopItem != this.lastShopItem) {
+            this.lastShopItem = this.shopItem;
             boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
         }

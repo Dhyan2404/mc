@@ -18,9 +18,11 @@ public class VillagerMixin {
         TradeHelper.customizeVillagerOffers((Villager) (Object) this);
     }
 
-    @Inject(method = "getOffers", at = @At("RETURN"), require = 0)
-    private void onGetOffers(CallbackInfoReturnable<MerchantOffers> cir) {
-        TradeHelper.customizeVillagerOffers((Villager) (Object) this);
+    @Inject(method = "setTradingPlayer", at = @At("HEAD"), require = 0)
+    private void onSetTradingPlayer(net.minecraft.world.entity.player.Player player, CallbackInfo ci) {
+        if (player != null) {
+            TradeHelper.customizeVillagerOffers((Villager) (Object) this);
+        }
     }
 
     /**
