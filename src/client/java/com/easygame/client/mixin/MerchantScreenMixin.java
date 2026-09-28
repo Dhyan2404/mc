@@ -2,6 +2,7 @@ package com.easygame.client.mixin;
 
 import com.easygame.client.EasyGameClient;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
 import net.minecraft.network.chat.Component;
@@ -44,26 +45,36 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
     @Inject(method = "init", at = @At("RETURN"), require = 0)
     private void onInit(CallbackInfo ci) {
         // Cycle Trades Button: refreshes trades without breaking lectern/workstation
-        Button cycleButton = Button.builder(Component.literal("⟳ Cycle"), btn -> {
+        Button cycleButton = Button.builder(Component.literal("§a⟳ §fCycle"), btn -> {
             EasyGameClient.INSTANCE.cycleTrades();
-        }).bounds(this.leftPos + 4, this.topPos - 22, 60, 20).build();
+        })
+        .bounds(this.leftPos + 4, this.topPos - 22, 62, 20)
+        .tooltip(Tooltip.create(Component.literal("§aCycle Trades§7: Refreshes villager trades instantly without breaking workstation.")))
+        .build();
         this.addRenderableWidget(cycleButton);
 
         // Lock / Save Trade Button: marks current trade so it is preserved when cycling
+        boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
         this.saveTradeButton = Button.builder(
-                Component.literal(EasyGameClient.INSTANCE.isLocked(this.shopItem) ? "★ Saved" : "☆ Save"),
+                Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
                 btn -> {
                     boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
-                    btn.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
+                    btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
                 }
-        ).bounds(this.leftPos + 68, this.topPos - 22, 70, 20).build();
+        )
+        .bounds(this.leftPos + 70, this.topPos - 22, 68, 20)
+        .tooltip(Tooltip.create(Component.literal("§eLock Trade§7: Protects this trade from being replaced during cycling.")))
+        .build();
         this.addRenderableWidget(this.saveTradeButton);
 
         // Armor Trims Button: rendered STRICTLY when interacting with a Toolsmith
         if (this.isToolsmith()) {
-            Button trimButton = Button.builder(Component.literal("🛡 Trims"), btn -> {
+            Button trimButton = Button.builder(Component.literal("§b🛡 §fTrims"), btn -> {
                 EasyGameClient.INSTANCE.requestArmorTrims();
-            }).bounds(this.leftPos + 142, this.topPos - 22, 65, 20).build();
+            })
+            .bounds(this.leftPos + 142, this.topPos - 22, 64, 20)
+            .tooltip(Tooltip.create(Component.literal("§bArmor Trims§7: Adds all 18 rare Armor Trims to Toolsmith trades.")))
+            .build();
             this.addRenderableWidget(trimButton);
         }
     }
@@ -76,7 +87,7 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         if (this.saveTradeButton != null && this.shopItem != this.lastShopItem) {
             this.lastShopItem = this.shopItem;
             boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
-            this.saveTradeButton.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
+            this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
         }
     }
 

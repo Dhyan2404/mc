@@ -1,7 +1,6 @@
 package com.easygame
 
 import com.easygame.command.EasyHopperCommand
-import com.easygame.command.TeleportSurvivalHelper
 import com.easygame.mixin.MerchantMenuAccessor
 import com.easygame.network.CycleTradesPayload
 import com.easygame.trade.TradeHelper
@@ -46,10 +45,9 @@ object EasyGame : ModInitializer {
             }
         }
 
-        // Commands: /easyhopper and allow /tp in survival
+        // Commands: /easyhopper
         CommandRegistrationCallback.EVENT.register { dispatcher, _, _ ->
             EasyHopperCommand.register(dispatcher)
-            TeleportSurvivalHelper.allowInSurvival(dispatcher)
         }
 
         // Breeze drops 10 Ominous Trial Keys on death

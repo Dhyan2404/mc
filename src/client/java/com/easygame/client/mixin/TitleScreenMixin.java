@@ -44,13 +44,22 @@ public abstract class TitleScreenMixin extends Screen {
             cachedTitleFpsWidth = font.width(cachedTitleFpsText);
         }
 
-        int fpsBadgePadding = 4;
-        int fpsX = this.width - cachedTitleFpsWidth - 8;
+        int fpsBadgePadding = 6;
+        int fpsX = this.width - cachedTitleFpsWidth - 10;
         int fpsY = 6;
+        int fpsRight = this.width - 4;
+        int fpsBottom = fpsY + font.lineHeight + 4;
+        int fpsLeft = fpsX - fpsBadgePadding;
 
         // Render sleek glass badge for FPS
-        extractor.fill(fpsX - fpsBadgePadding - 2, fpsY - 3, this.width - 4, fpsY + font.lineHeight + 3, 0x77000000);
-        extractor.fill(fpsX - fpsBadgePadding - 2, fpsY - 3, fpsX - fpsBadgePadding, fpsY + font.lineHeight + 3, cachedTitleFpsColor);
+        extractor.fill(fpsLeft, fpsY - 2, fpsRight, fpsBottom, 0x880E141E);
+        // Left accent indicator
+        extractor.fill(fpsLeft, fpsY - 2, fpsLeft + 2, fpsBottom, cachedTitleFpsColor);
+        // Top specular highlight
+        extractor.fill(fpsLeft, fpsY - 2, fpsRight, fpsY - 1, 0x33FFFFFF);
+        // Bottom shadow
+        extractor.fill(fpsLeft, fpsBottom - 1, fpsRight, fpsBottom, 0x33000000);
+
         extractor.text(font, cachedTitleFpsText, fpsX, fpsY, 0xFFFFFFFF, true);
     }
 }
