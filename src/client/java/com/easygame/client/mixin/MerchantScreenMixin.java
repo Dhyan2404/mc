@@ -13,7 +13,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreen.class)
 public abstract class MerchantScreenMixin extends AbstractContainerScreen<MerchantMenu> {
@@ -37,10 +36,13 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         this.addRenderableWidget(cycleButton);
 
         // Lock / Save Trade Button: marks current trade so it is preserved when cycling
-        this.saveTradeButton = Button.builder(Component.literal("☆ Save"), btn -> {
-            boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
-            btn.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
-        }).bounds(this.leftPos + 68, this.topPos - 22, 70, 20).build();
+        this.saveTradeButton = Button.builder(
+                Component.literal(EasyGameClient.INSTANCE.isLocked(this.shopItem) ? "★ Saved" : "☆ Save"),
+                btn -> {
+                    boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
+                    btn.setMessage(Component.literal(locked ? "★ Saved" : "☆ Save"));
+                }
+        ).bounds(this.leftPos + 68, this.topPos - 22, 70, 20).build();
         this.addRenderableWidget(this.saveTradeButton);
 
         // Armor Trims Button: Toolsmith trades all types of armor trims for 2 diamonds each
@@ -48,13 +50,5 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
             EasyGameClient.INSTANCE.requestArmorTrims();
         }).bounds(this.leftPos + 142, this.topPos - 22, 65, 20).build();
         this.addRenderableWidget(trimButton);
-    }
-
-    @Inject(method = "mouseClicked", at = @At("RETURN"), require = 0)
-    private void onMouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (this.saveTradeButton != null) {
-            boolean isCurrentLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
-            this.saveTradeButton.setMessage(Component.literal(isCurrentLocked ? "★ Saved" : "☆ Save"));
-        }
     }
 }
