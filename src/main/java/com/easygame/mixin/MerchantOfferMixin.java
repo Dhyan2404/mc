@@ -20,13 +20,12 @@ public abstract class MerchantOfferMixin {
     @Shadow
     public abstract ItemStack getResult();
 
+    @Shadow
+    public abstract ItemStack getCostA();
+
     /**
      * Requirement: Unlimited trades (villagers never run out of stock / no trade limits or caps).
      */
-    @Inject(method = "hasNoUsesLeft", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onHasNoUsesLeft(CallbackInfoReturnable<Boolean> cir) {
-        cir.setReturnValue(false);
-    }
 
     @Inject(method = "isOutOfStock", at = @At("HEAD"), cancellable = true, require = 0)
     private void onIsOutOfStock(CallbackInfoReturnable<Boolean> cir) {
@@ -80,6 +79,24 @@ public abstract class MerchantOfferMixin {
     @Inject(method = "getCostB", at = @At("HEAD"), cancellable = true, require = 0)
     private void onGetCostB(CallbackInfoReturnable<ItemStack> cir) {
         cir.setReturnValue(ItemStack.EMPTY);
+    }
+
+    /**
+     * Requirement: Emerald-Only Trades & custom costs:
+     * Only primary cost (Cost A) is required to satisfy a trade. Secondary items (like normal books) are never required.
+     */
+    @Inject(method = "satisfiedBy", at = @At("HEAD"), cancellable = true, require = 0)
+    private void onSatisfiedBy(ItemStack itemA, ItemStack itemB, CallbackInfoReturnable<Boolean> cir) {
+        ItemStack requiredA = this.getCostA();
+        if (requiredA == null || requiredA.isEmpty()) {
+            cir.setReturnValue(true);
+            return;
+        }
+        if (itemA != null && itemA.is(requiredA.getItem()) && itemA.getCount() >= requiredA.getCount()) {
+            cir.setReturnValue(true);
+        } else {
+            cir.setReturnValue(false);
+        }
     }
 
     /**
