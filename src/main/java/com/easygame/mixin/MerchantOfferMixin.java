@@ -82,20 +82,18 @@ public abstract class MerchantOfferMixin {
         cir.setReturnValue(ItemStack.EMPTY);
     }
 
-    @Inject(method = "hasCostB", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onHasCostB(CallbackInfoReturnable<Boolean> cir) {
-        cir.setReturnValue(false);
-    }
-
     /**
      * Requirement: Fletcher Trade Customization:
      * Sell: 1 Stick -> 1 Emerald (overrides 32 sticks -> 1 emerald).
+     * Note: In Minecraft 26.1, getBaseCostA() returns ItemStack, NOT ItemCost!
      */
     @Inject(method = "getBaseCostA", at = @At("RETURN"), cancellable = true, require = 0)
-    private void onGetBaseCostA(CallbackInfoReturnable<ItemCost> cir) {
-        ItemCost original = cir.getReturnValue();
-        if (original != null && original.item().value() == Items.STICK && this.getResult().is(Items.EMERALD)) {
-            cir.setReturnValue(new ItemCost(Items.STICK, 1));
+    private void onGetBaseCostA(CallbackInfoReturnable<ItemStack> cir) {
+        ItemStack original = cir.getReturnValue();
+        if (original != null && original.is(Items.STICK) && this.getResult().is(Items.EMERALD)) {
+            ItemStack singleStick = original.copy();
+            singleStick.setCount(1);
+            cir.setReturnValue(singleStick);
         }
     }
 
