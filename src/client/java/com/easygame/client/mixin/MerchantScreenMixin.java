@@ -27,6 +27,16 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         super(menu, inventory, title);
     }
 
+    @Unique
+    private boolean isToolsmith() {
+        Component title = this.getTitle();
+        if (title != null) {
+            String name = title.getString().toLowerCase();
+            return name.contains("toolsmith");
+        }
+        return false;
+    }
+
     @Inject(method = "init", at = @At("RETURN"), require = 0)
     private void onInit(CallbackInfo ci) {
         // Cycle Trades Button: refreshes trades without breaking lectern/workstation
@@ -45,10 +55,12 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         ).bounds(this.leftPos + 68, this.topPos - 22, 70, 20).build();
         this.addRenderableWidget(this.saveTradeButton);
 
-        // Armor Trims Button: Toolsmith trades all types of armor trims for 2 diamonds each
-        Button trimButton = Button.builder(Component.literal("🛡 Trims"), btn -> {
-            EasyGameClient.INSTANCE.requestArmorTrims();
-        }).bounds(this.leftPos + 142, this.topPos - 22, 65, 20).build();
-        this.addRenderableWidget(trimButton);
+        // Armor Trims Button: rendered STRICTLY when interacting with a Toolsmith
+        if (this.isToolsmith()) {
+            Button trimButton = Button.builder(Component.literal("🛡 Trims"), btn -> {
+                EasyGameClient.INSTANCE.requestArmorTrims();
+            }).bounds(this.leftPos + 142, this.topPos - 22, 65, 20).build();
+            this.addRenderableWidget(trimButton);
+        }
     }
 }

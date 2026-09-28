@@ -20,7 +20,7 @@ public abstract class MerchantOfferMixin {
     public abstract ItemStack getResult();
 
     /**
-     * Requirement: There is no limit to trades (villagers never run out of stock / lock trades).
+     * Requirement: Unlimited trades (villagers never run out of stock / lock trades).
      */
     @Inject(method = "hasNoUsesLeft", at = @At("HEAD"), cancellable = true, require = 0)
     private void onHasNoUsesLeft(CallbackInfoReturnable<Boolean> cir) {
@@ -43,22 +43,17 @@ public abstract class MerchantOfferMixin {
     }
 
     /**
-     * Requirement: No regular book needed to trade for enchanted books (only emeralds required).
+     * Requirement: Emerald-Only Trades: Remove all secondary item costs from all villager trades
+     * (e.g. no normal book requirements).
      */
     @Inject(method = "getItemCostB", at = @At("HEAD"), cancellable = true, require = 0)
     private void onGetItemCostB(CallbackInfoReturnable<Optional<ItemCost>> cir) {
-        ItemStack result = this.getResult();
-        if (result != null && result.is(Items.ENCHANTED_BOOK)) {
-            cir.setReturnValue(Optional.empty());
-        }
+        cir.setReturnValue(Optional.empty());
     }
 
     @Inject(method = "getCostB", at = @At("HEAD"), cancellable = true, require = 0)
     private void onGetCostB(CallbackInfoReturnable<ItemStack> cir) {
-        ItemStack result = this.getResult();
-        if (result != null && result.is(Items.ENCHANTED_BOOK)) {
-            cir.setReturnValue(ItemStack.EMPTY);
-        }
+        cir.setReturnValue(ItemStack.EMPTY);
     }
 
     /**
