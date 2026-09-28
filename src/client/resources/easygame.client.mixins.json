@@ -3,7 +3,9 @@
 	"package": "com.easygame.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"MerchantScreenMixin"
+		"MerchantScreenMixin",
+		"GuiMixin",
+		"TitleScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
