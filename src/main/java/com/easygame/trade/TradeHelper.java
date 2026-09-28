@@ -221,12 +221,14 @@ public class TradeHelper {
             if (profHolder.is(VillagerProfession.FLETCHER)) {
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.EMERALD, 1), 0, 999999, 2, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.APPLE, 2), 0, 999999, 2, 0.05f));
-                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
-                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.BOW, 1), 0, 999999, 2, 0.05f));
-                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 3), Optional.empty(), new ItemStack(Items.CROSSBOW, 1), 0, 999999, 2, 0.05f));
-                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.FLINT, 10), 0, 999999, 2, 0.05f));
-                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 5), Optional.empty(), new ItemStack(Items.SPECTRAL_ARROW, 16), 0, 999999, 2, 0.05f));
-                Collections.shuffle(list, random);
+                List<MerchantOffer> extra = new ArrayList<>();
+                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
+                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.BOW, 1), 0, 999999, 2, 0.05f));
+                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 3), Optional.empty(), new ItemStack(Items.CROSSBOW, 1), 0, 999999, 2, 0.05f));
+                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.FLINT, 10), 0, 999999, 2, 0.05f));
+                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 5), Optional.empty(), new ItemStack(Items.SPECTRAL_ARROW, 16), 0, 999999, 2, 0.05f));
+                Collections.shuffle(extra, random);
+                list.addAll(extra);
                 return list;
             }
 

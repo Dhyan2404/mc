@@ -2,26 +2,15 @@ package com.easygame.mixin;
 
 import com.easygame.trade.TradeHelper;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.Optional;
-
 @Mixin(MerchantOffer.class)
 public abstract class MerchantOfferMixin {
-
-    @Shadow
-    public abstract ItemStack getResult();
-
-    @Shadow
-    public abstract ItemStack getCostA();
 
     /**
      * Requirement: Unlimited trades (villagers never run out of stock / no trade limits or caps).
@@ -68,82 +57,8 @@ public abstract class MerchantOfferMixin {
     }
 
     /**
-     * Requirement: Emerald-Only Trades: Remove all secondary item costs from all villager trades
-     * (e.g. no normal book requirements).
-     */
-    @Inject(method = "getItemCostB", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onGetItemCostB(CallbackInfoReturnable<Optional<ItemCost>> cir) {
-        cir.setReturnValue(Optional.empty());
-    }
-
-    @Inject(method = "getCostB", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onGetCostB(CallbackInfoReturnable<ItemStack> cir) {
-        cir.setReturnValue(ItemStack.EMPTY);
-    }
-
-    /**
-     * Requirement: Emerald-Only Trades & custom costs:
-     * Only primary cost (Cost A) is required to satisfy a trade. Secondary items (like normal books) are never required.
-     */
-    @Inject(method = "satisfiedBy", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onSatisfiedBy(ItemStack itemA, ItemStack itemB, CallbackInfoReturnable<Boolean> cir) {
-        ItemStack requiredA = this.getCostA();
-        if (requiredA == null || requiredA.isEmpty()) {
-            cir.setReturnValue(true);
-            return;
-        }
-        if (itemA != null && itemA.is(requiredA.getItem()) && itemA.getCount() >= requiredA.getCount()) {
-            cir.setReturnValue(true);
-        } else {
-            cir.setReturnValue(false);
-        }
-    }
-
-    /**
-     * Requirement: Fletcher Trade Customization:
-     * Sell: 1 Stick -> 1 Emerald (overrides 32 sticks -> 1 emerald).
-     * Note: In Minecraft 26.1, getBaseCostA() returns ItemStack, NOT ItemCost!
-     */
-    @Inject(method = "getBaseCostA", at = @At("RETURN"), cancellable = true, require = 0)
-    private void onGetBaseCostA(CallbackInfoReturnable<ItemStack> cir) {
-        ItemStack original = cir.getReturnValue();
-        if (original != null && original.is(Items.STICK) && this.getResult().is(Items.EMERALD)) {
-            ItemStack singleStick = original.copy();
-            singleStick.setCount(1);
-            cir.setReturnValue(singleStick);
-        }
-    }
-
-    @Inject(method = "getCostA", at = @At("RETURN"), cancellable = true, require = 0)
-    private void onGetCostA(CallbackInfoReturnable<ItemStack> cir) {
-        ItemStack original = cir.getReturnValue();
-        if (original != null && original.is(Items.STICK) && this.getResult().is(Items.EMERALD)) {
-            ItemStack singleStick = original.copy();
-            singleStick.setCount(1);
-            cir.setReturnValue(singleStick);
-        }
-    }
-
-    @Inject(method = "getItemCostA", at = @At("RETURN"), cancellable = true, require = 0)
-    private void onGetItemCostA(CallbackInfoReturnable<ItemCost> cir) {
-        ItemCost original = cir.getReturnValue();
-        if (original != null && original.item().value() == Items.STICK && this.getResult().is(Items.EMERALD)) {
-            cir.setReturnValue(new ItemCost(Items.STICK, 1));
-        }
-    }
-
-    /**
-     * Requirement: Trade XP Override:
-     * Set vanilla trade XP drops to 0 so the 3 full levels given on trade take strictly overrides default XP.
-     */
-    @Inject(method = "getXp", at = @At("HEAD"), cancellable = true, require = 0)
-    private void onGetXp(CallbackInfoReturnable<Integer> cir) {
-        cir.setReturnValue(0);
-    }
-
-    /**
      * Requirement: Only max level of enchantment trades (Sharpness 5, Unbreaking 3, etc.).
-     * Maximized upon creation and assembly, avoiding expensive per-frame render overhead.
+     * Maximized upon assembly when taking trade output.
      */
     @Inject(method = "assemble", at = @At("RETURN"), require = 0)
     private void onAssemble(CallbackInfoReturnable<ItemStack> cir) {
@@ -153,3 +68,4 @@ public abstract class MerchantOfferMixin {
         }
     }
 }
+

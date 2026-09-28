@@ -16,9 +16,9 @@ public class MerchantResultSlotMixin {
     /**
      * Requirement: Every single trade gives 3 full bars/levels of XP all the time.
      */
-    @Inject(method = "onTake", at = @At("HEAD"), require = 0)
+    @Inject(method = "onTake", at = @At("TAIL"), require = 0)
     private void onTakeTradeResult(Player player, ItemStack stack, CallbackInfo ci) {
-        if (!player.level().isClientSide()) {
+        if (!player.level().isClientSide() && stack != null && !stack.isEmpty()) {
             player.giveExperienceLevels(3);
             player.level().playSound(
                     null,
