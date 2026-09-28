@@ -122,36 +122,64 @@ public class TradeHelper {
             }
         }
 
-        int targetTradeCount;
-        if (!preservedMap.isEmpty()) {
-            // Locked trades exist -> add +1 trade slot
-            targetTradeCount = Math.max(oldOffers.size() + 1, 2);
-        } else {
-            // No locked trades -> reset to 2 fresh trades
-            targetTradeCount = 2;
-        }
+        // Requirement: Default unlocked trades is 2.
+        // If 0 saved: 0 + 2 = 2 trades total (2 fresh).
+        // If 1 saved: 1 + 2 = 3 trades total (1 saved remains, 1 refreshed, 1 new 3rd trade appears).
+        // If 2 saved: 2 + 2 = 4 trades total (2 saved remain, 2 new trades appear).
+        // If N saved: N + 2 trades total.
+        int targetTradeCount = preservedMap.size() + 2;
 
-        int neededFresh = Math.max(targetTradeCount - preservedMap.size(), 1);
-        List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, oldOffers, neededFresh + 4);
+        int neededFresh = 2;
+        List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, oldOffers, neededFresh + 6);
 
-        MerchantOffers finalOffers = new MerchantOffers();
-        int freshIdx = 0;
+        MerchantOffer[] slots = new MerchantOffer[targetTradeCount];
 
-        for (int i = 0; i < targetTradeCount; i++) {
-            if (preservedMap.containsKey(i)) {
-                finalOffers.add(preservedMap.get(i));
-            } else if (freshIdx < freshOffers.size()) {
-                finalOffers.add(freshOffers.get(freshIdx++));
+        // 1. Place preserved offers at their original slot positions if within target range
+        List<MerchantOffer> overflowPreserved = new ArrayList<>();
+        for (Map.Entry<Integer, MerchantOffer> entry : preservedMap.entrySet()) {
+            int idx = entry.getKey();
+            if (idx < targetTradeCount) {
+                slots[idx] = entry.getValue();
+            } else {
+                overflowPreserved.add(entry.getValue());
             }
         }
 
-        while (finalOffers.size() < targetTradeCount && freshIdx < freshOffers.size()) {
-            finalOffers.add(freshOffers.get(freshIdx++));
+        // 2. If any preserved offer was beyond targetTradeCount, place into the first free slot
+        for (MerchantOffer overflow : overflowPreserved) {
+            for (int i = 0; i < targetTradeCount; i++) {
+                if (slots[i] == null) {
+                    slots[i] = overflow;
+                    break;
+                }
+            }
         }
 
-        for (MerchantOffer fallback : oldOffers) {
-            if (finalOffers.size() >= targetTradeCount) break;
-            finalOffers.add(fallback.copy());
+        // 3. Fill all empty slots with fresh trades (there are exactly 2 empty slots!)
+        int freshIdx = 0;
+        for (int i = 0; i < targetTradeCount; i++) {
+            if (slots[i] == null) {
+                if (freshIdx < freshOffers.size()) {
+                    slots[i] = freshOffers.get(freshIdx++);
+                }
+            }
+        }
+
+        // 4. Fallback if freshOffers ran out
+        for (int i = 0; i < targetTradeCount; i++) {
+            if (slots[i] == null) {
+                for (MerchantOffer fallback : oldOffers) {
+                    slots[i] = fallback.copy();
+                    break;
+                }
+            }
+        }
+
+        MerchantOffers finalOffers = new MerchantOffers();
+        for (int i = 0; i < targetTradeCount; i++) {
+            if (slots[i] != null) {
+                finalOffers.add(slots[i]);
+            }
         }
 
         currentOffers.clear();
@@ -174,8 +202,22 @@ public class TradeHelper {
         MerchantOffers offers = villager.getOffers();
         if (offers == null) return;
 
-        for (MerchantOffer offer : offers) {
+        for (int i = 0; i < offers.size(); i++) {
+            MerchantOffer offer = offers.get(i);
             maximizeEnchantments(offer.getResult());
+
+            // Requirement: "make cost 10 emreld for everybook"
+            if (offer.getResult().is(Items.ENCHANTED_BOOK)) {
+                offers.set(i, new MerchantOffer(
+                        new ItemCost(Items.EMERALD, 10),
+                        Optional.empty(),
+                        offer.getResult().copy(),
+                        0,
+                        999999,
+                        offer.getXp() > 0 ? offer.getXp() : 5,
+                        0.05f
+                ));
+            }
         }
 
         if (villager.getVillagerData().profession().is(VillagerProfession.FLETCHER)) {
@@ -217,7 +259,7 @@ public class TradeHelper {
             VillagerData data = villager.getVillagerData();
             Holder<VillagerProfession> profHolder = data.profession();
 
-            // 1. LIBRARIAN: Rolls max-level enchanted books for emeralds
+            // 1. LIBRARIAN: Rolls max-level enchanted books for strictly 10 emeralds
             if (profHolder.is(VillagerProfession.LIBRARIAN)) {
                 generateEnchantedBookTrades(list, serverLevel, count, random);
                 return list;
@@ -316,7 +358,8 @@ public class TradeHelper {
                 if (list.size() >= count) break;
 
                 ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(holder, holder.value().getMaxLevel()));
-                int emeraldCost = 5 + random.nextInt(20);
+                // Requirement: strictly 10 emeralds for every book
+                int emeraldCost = 10;
                 list.add(new MerchantOffer(
                         new ItemCost(Items.EMERALD, emeraldCost),
                         Optional.empty(),
@@ -328,7 +371,7 @@ public class TradeHelper {
                 ));
             }
         } catch (Exception e) {
-            list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.BOOKSHELF, 1), 0, 999999, 2, 0.05f));
+            list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 10), Optional.empty(), new ItemStack(Items.BOOKSHELF, 1), 0, 999999, 2, 0.05f));
         }
     }
 

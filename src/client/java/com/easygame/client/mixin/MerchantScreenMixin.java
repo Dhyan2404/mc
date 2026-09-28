@@ -1,6 +1,7 @@
 package com.easygame.client.mixin;
 
 import com.easygame.client.EasyGameClient;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -9,6 +10,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MerchantMenu;
+import net.minecraft.world.item.trading.MerchantOffers;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -21,6 +23,9 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
 
     @Shadow
     private int shopItem;
+
+    @Shadow
+    private int scrollOff;
 
     @Unique
     private Button saveTradeButton;
@@ -79,15 +84,26 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         }
     }
 
-    @Unique
-    private int lastShopItem = -1;
-
     @Inject(method = "containerTick", at = @At("RETURN"), require = 0)
     private void onContainerTick(CallbackInfo ci) {
-        if (this.saveTradeButton != null && this.shopItem != this.lastShopItem) {
-            this.lastShopItem = this.shopItem;
+        if (this.saveTradeButton != null) {
             boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+        }
+    }
+
+    @Inject(method = "extractContents", at = @At("RETURN"), require = 0)
+    private void onExtractContents(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        MerchantOffers offers = this.menu.getOffers();
+        if (offers == null || offers.isEmpty()) return;
+
+        // Render star indicator on each saved trade button in the list
+        for (int i = 0; i < 7; i++) {
+            int tradeIndex = i + this.scrollOff;
+            if (tradeIndex < offers.size() && EasyGameClient.INSTANCE.isLocked(tradeIndex)) {
+                int buttonY = this.topPos + 18 + (i * 20);
+                extractor.text(this.font, "§6★", this.leftPos + 78, buttonY + 6, 0xFFFFD700, true);
+            }
         }
     }
 
