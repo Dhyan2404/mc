@@ -3,7 +3,11 @@
 	"package": "com.easygame.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
-		"ExampleMixin"
+		"BreezeMixin",
+		"ExampleMixin",
+		"MerchantMenuAccessor",
+		"MerchantOfferMixin",
+		"VaultServerDataMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
