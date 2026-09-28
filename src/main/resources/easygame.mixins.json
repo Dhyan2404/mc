@@ -3,7 +3,6 @@
 	"package": "com.easygame.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
-		"AbstractVillagerAccessor",
 		"AnvilMenuMixin",
 		"TeleportCommandMixin",
 		"HopperBlockEntityAccessor",
@@ -16,7 +15,7 @@
 		"LevelSummaryMixin"
 	],
 	"injectors": {
-		"defaultRequire": 1
+		"defaultRequire": 0
 	},
 	"overwrites": {
 		"requireAnnotations": true

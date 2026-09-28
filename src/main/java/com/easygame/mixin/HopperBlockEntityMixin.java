@@ -13,9 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(HopperBlockEntity.class)
 public abstract class HopperBlockEntityMixin {
 
-    /**
-     * Requirement: Dark Red Easy Hopper: 64 items/tick instant transfer with 0 cooldown.
-     */
     @Inject(method = "pushItemsTick", at = @At("RETURN"), require = 0)
     private static void onPushItemsTickReturn(Level level, BlockPos pos, BlockState state, HopperBlockEntity hopper, CallbackInfo ci) {
         if (level.isClientSide()) return;
@@ -27,10 +24,8 @@ public abstract class HopperBlockEntityMixin {
         boolean isEasyHopper = name.contains("easy hopper") || name.contains("easyhopper") || name.contains("insta hopper");
         if (!isEasyHopper) return;
 
-        HopperBlockEntityAccessor accessor = (HopperBlockEntityAccessor) hopper;
-        accessor.easygame$setCooldown(0);
+        ((HopperBlockEntityAccessor) hopper).easygame$setCooldown(0);
 
-        // Run up to 63 additional cycles (total 64 items per tick)
         for (int i = 0; i < 63; i++) {
             boolean moved = HopperBlockEntityAccessor.easygame$tryMoveItems(
                     level,
@@ -39,7 +34,7 @@ public abstract class HopperBlockEntityMixin {
                     hopper,
                     () -> HopperBlockEntity.suckInItems(level, hopper)
             );
-            accessor.easygame$setCooldown(0);
+            ((HopperBlockEntityAccessor) hopper).easygame$setCooldown(0);
             if (!moved) {
                 break;
             }

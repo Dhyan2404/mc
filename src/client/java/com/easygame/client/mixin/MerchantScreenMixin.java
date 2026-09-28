@@ -1,38 +1,31 @@
 package com.easygame.client.mixin;
 
 import com.easygame.client.EasyGameClient;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MerchantMenu;
-import net.minecraft.world.item.trading.MerchantOffers;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreen.class)
 public abstract class MerchantScreenMixin extends AbstractContainerScreen<MerchantMenu> {
 
     @Shadow
-    int shopItem;
-
-    @Shadow
-    int scrollOff;
+    private int shopItem;
 
     @Unique
     private Button saveTradeButton;
 
-    public MerchantScreenMixin(MerchantMenu menu, Inventory inventory, Component title) {
+    protected MerchantScreenMixin(MerchantMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
     }
 
@@ -95,30 +88,6 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
             this.lastShopItem = this.shopItem;
             boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
-        }
-    }
-
-    @Inject(method = "mouseClicked", at = @At("RETURN"), require = 0)
-    private void onMouseClicked(MouseButtonEvent event, boolean handled, CallbackInfoReturnable<Boolean> cir) {
-        if (this.saveTradeButton != null) {
-            this.lastShopItem = this.shopItem;
-            boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
-            this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
-        }
-    }
-
-    @Inject(method = "extractContents", at = @At("RETURN"), require = 0)
-    private void onExtractContents(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        MerchantOffers offers = this.menu.getOffers();
-        if (offers == null || offers.isEmpty()) return;
-
-        // Render gold star indicator directly on every saved/locked trade in the list
-        for (int i = 0; i < 7; i++) {
-            int tradeIndex = i + this.scrollOff;
-            if (tradeIndex < offers.size() && EasyGameClient.INSTANCE.isLocked(tradeIndex)) {
-                int buttonY = this.topPos + 18 + (i * 20);
-                extractor.text(this.font, "§6★", this.leftPos + 79, buttonY + 6, 0xFFFFD700, true);
-            }
         }
     }
 

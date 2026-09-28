@@ -31,7 +31,6 @@ public abstract class GuiMixin {
     @Unique
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm:ss a");
 
-    // Zero-allocation cached fields to guarantee lag-free 144+ FPS rendering
     @Unique
     private static long lastTimeUpdateMs = 0;
     @Unique
@@ -52,7 +51,7 @@ public abstract class GuiMixin {
     @Unique
     private static int lastFps = -1;
     @Unique
-    private static String cachedFpsText = "§a0 §7FPS";
+    private static String cachedFpsText = "";
     @Unique
     private static int cachedFpsColor = 0xFF00E676;
     @Unique
@@ -80,7 +79,6 @@ public abstract class GuiMixin {
             return;
         }
 
-        // Hide when F3 debug overlay is active to avoid overlapping
         if (this.minecraft.getDebugOverlay() != null && this.minecraft.getDebugOverlay().showDebugScreen()) {
             return;
         }
@@ -114,7 +112,6 @@ public abstract class GuiMixin {
         int fpsBottom = fpsY + font.lineHeight + 1;
         int fpsLeft = fpsX - fpsPaddingH;
 
-        // Render compact glass badge for FPS
         extractor.fill(fpsLeft, fpsY - 1, fpsRight, fpsBottom, 0x770E141E);
         extractor.fill(fpsLeft, fpsY - 1, fpsLeft + 1, fpsBottom, cachedFpsColor);
         extractor.text(font, cachedFpsText, fpsX, fpsY, 0xFFFFFFFF, true);
@@ -126,7 +123,6 @@ public abstract class GuiMixin {
         int cardPaddingH = 4;
 
         if (player != null) {
-            // Update Coordinates and Biome Cache only when player crosses block boundary
             int px = (int) Math.floor(player.getX());
             int py = (int) Math.floor(player.getY());
             int pz = (int) Math.floor(player.getZ());
@@ -142,13 +138,12 @@ public abstract class GuiMixin {
 
                 Holder<Biome> biomeHolder = player.level().getBiome(player.blockPosition());
                 String biomeName = biomeHolder.unwrapKey()
-                        .map(k -> (String) formatBiomeName(k.identifier().getPath()))
+                        .map(k -> formatBiomeName(k.identifier().getPath()))
                         .orElse("Unknown");
 
                 cachedPosText = "§b📍 §e" + px + " " + py + " " + pz + " §8| §f" + dirName + " §8| §a" + biomeName;
             }
 
-            // Update Game Time Cache only when tick advances
             long dayTime = player.level().getOverworldClockTime();
             if (dayTime != lastDayTime) {
                 lastDayTime = dayTime;
@@ -169,11 +164,9 @@ public abstract class GuiMixin {
             int lineHeight = font.lineHeight + 1;
             int cardBottom = cardTop + (lineHeight * 2);
 
-            // Small, compact translucent glass HUD background
             extractor.fill(cardLeft, cardTop - 1, cardRight, cardBottom, 0x770E141E);
             extractor.fill(cardLeft, cardTop - 1, cardLeft + 1, cardBottom, 0xFF00E5FF);
 
-            // Render 2 neat rows
             int textX = cardLeft + 3;
             extractor.text(font, cachedPosText, textX, cardTop, 0xFFFFFFFF, true);
             extractor.text(font, fullTimeText, textX, cardTop + lineHeight, 0xFFFFFFFF, true);

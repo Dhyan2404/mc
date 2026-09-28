@@ -6,19 +6,21 @@ import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.TooltipFlag
 
 object EasyGameClient : ClientModInitializer {
     val lockedTradeIndices = mutableSetOf<Int>()
 
     override fun onInitializeClient() {
         // Enchantment description tooltip callback
-        ItemTooltipCallback.EVENT.register { stack, _, _, lines ->
+        ItemTooltipCallback.EVENT.register { stack: ItemStack, _, _: TooltipFlag, lines: MutableList<Component> ->
             val addedKeys = mutableSetOf<String>()
 
             // Check stored enchantments (Enchanted Books)
             stack.get(DataComponents.STORED_ENCHANTMENTS)?.keySet()?.forEach { holder ->
                 holder.unwrapKey().ifPresent { key ->
-                    val path = key.identifier().toString().substringAfterLast(':')
+                    val path = key.identifier().path
                     if (addedKeys.add(path)) {
                         val desc = EnchantmentDescriptions.getDescription(path)
                         if (desc != null) {
@@ -34,7 +36,7 @@ object EasyGameClient : ClientModInitializer {
             // Check item enchantments (Swords, Bows, Armor, Tools)
             stack.get(DataComponents.ENCHANTMENTS)?.keySet()?.forEach { holder ->
                 holder.unwrapKey().ifPresent { key ->
-                    val path = key.identifier().toString().substringAfterLast(':')
+                    val path = key.identifier().path
                     if (addedKeys.add(path)) {
                         val desc = EnchantmentDescriptions.getDescription(path)
                         if (desc != null) {

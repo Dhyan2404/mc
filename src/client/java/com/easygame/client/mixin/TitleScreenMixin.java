@@ -18,7 +18,7 @@ public abstract class TitleScreenMixin extends Screen {
     @Unique
     private static int lastTitleFps = -1;
     @Unique
-    private static String cachedTitleFpsText = "§a0 §7FPS";
+    private static String cachedTitleFpsText = "";
     @Unique
     private static int cachedTitleFpsColor = 0xFF00E676;
     @Unique
@@ -35,6 +35,10 @@ public abstract class TitleScreenMixin extends Screen {
         Font font = mc.font;
         if (font == null) return;
 
+        if (mc.getDebugOverlay().showDebugScreen()) {
+            return;
+        }
+
         int fps = mc.getFps();
         if (fps != lastTitleFps || cachedTitleFpsWidth == 0) {
             lastTitleFps = fps;
@@ -44,14 +48,14 @@ public abstract class TitleScreenMixin extends Screen {
             cachedTitleFpsWidth = font.width(cachedTitleFpsText);
         }
 
+        int width = this.width;
         int fpsPaddingH = 4;
-        int fpsX = this.width - cachedTitleFpsWidth - 6;
+        int fpsX = width - cachedTitleFpsWidth - 6;
         int fpsY = 4;
-        int fpsRight = this.width - 3;
+        int fpsRight = width - 3;
         int fpsBottom = fpsY + font.lineHeight + 1;
         int fpsLeft = fpsX - fpsPaddingH;
 
-        // Render compact glass badge for FPS
         extractor.fill(fpsLeft, fpsY - 1, fpsRight, fpsBottom, 0x770E141E);
         extractor.fill(fpsLeft, fpsY - 1, fpsLeft + 1, fpsBottom, cachedTitleFpsColor);
         extractor.text(font, cachedTitleFpsText, fpsX, fpsY, 0xFFFFFFFF, true);

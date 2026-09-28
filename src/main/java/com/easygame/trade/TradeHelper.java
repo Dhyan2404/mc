@@ -1,10 +1,9 @@
 package com.easygame.trade;
 
-import com.easygame.mixin.AbstractVillagerAccessor;
+import com.easygame.mixin.MerchantMenuAccessor;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -12,16 +11,18 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.entity.npc.villager.VillagerData;
 import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.Merchant;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
-import net.minecraft.world.item.trading.TradeSet;
 
 import java.util.*;
 
@@ -48,13 +49,9 @@ public class TradeHelper {
             Items.BOLT_ARMOR_TRIM_SMITHING_TEMPLATE
     );
 
-    /**
-     * Maximize any enchantments present on the item stack to their highest level.
-     */
     public static void maximizeEnchantments(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return;
 
-        // Check Stored Enchantments (e.g. Enchanted Books)
         ItemEnchantments stored = stack.get(DataComponents.STORED_ENCHANTMENTS);
         if (stored != null && !stored.isEmpty()) {
             ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(stored);
@@ -65,7 +62,6 @@ public class TradeHelper {
             stack.set(DataComponents.STORED_ENCHANTMENTS, mutable.toImmutable());
         }
 
-        // Check regular item enchantments (e.g. Swords, Tools, Armor)
         ItemEnchantments enchants = stack.get(DataComponents.ENCHANTMENTS);
         if (enchants != null && !enchants.isEmpty()) {
             ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(enchants);
@@ -77,122 +73,132 @@ public class TradeHelper {
         }
     }
 
-    /**
-     * Creates an armor trim trade costing 2 Diamonds for 1 trim template.
-     */
     public static MerchantOffer createArmorTrimOffer(Item trimItem) {
         ItemCost cost = new ItemCost(Items.DIAMOND, 2);
         ItemStack result = new ItemStack(trimItem, 1);
         return new MerchantOffer(cost, Optional.empty(), result, 0, 999999, 5, 0.05f);
     }
 
-    /**
-     * Loads all 18 armor trim trades into the merchant.
-     */
     public static void loadAllArmorTrims(Merchant trader, ServerPlayer player) {
         MerchantOffers offers = trader.getOffers();
+        if (offers == null) {
+            offers = new MerchantOffers();
+            trader.overrideOffers(offers);
+        }
         offers.clear();
         for (Item trimItem : ARMOR_TRIM_TEMPLATES) {
             offers.add(createArmorTrimOffer(trimItem));
+        }
+        if (player.containerMenu instanceof MerchantMenu menu) {
+            menu.setOffers(offers);
+            try {
+                menu.slotsChanged(((MerchantMenuAccessor) menu).getTradeContainer());
+            } catch (Throwable ignored) {
+            }
         }
         syncOffers(trader, player);
         player.level().playSound(null, player.blockPosition(), SoundEvents.VILLAGER_WORK_TOOLSMITH, SoundSource.PLAYERS, 1.0f, 1.0f);
     }
 
-    /**
-     * Cycles / refreshes unlocked trades while preserving all locked/saved trades.
-     * Requirement: If user saved trades, keep them intact, refresh unlocked trades,
-     * and add +1 trade slot so a new trade appears (e.g. 2 -> 3 -> 4 trades)!
-     */
     public static void cycleTrades(Merchant trader, List<Integer> lockedIndices, ServerPlayer player) {
         MerchantOffers currentOffers = trader.getOffers();
-        Map<Integer, MerchantOffer> preservedMap = new HashMap<>();
+        if (currentOffers == null) {
+            currentOffers = new MerchantOffers();
+            trader.overrideOffers(currentOffers);
+        }
 
-        for (int idx : lockedIndices) {
-            if (idx >= 0 && idx < currentOffers.size()) {
-                preservedMap.put(idx, currentOffers.get(idx));
+        // Snapshot existing offers to safely preserve locked ones
+        MerchantOffers oldOffers = new MerchantOffers();
+        for (MerchantOffer o : currentOffers) {
+            oldOffers.add(o.copy());
+        }
+
+        Map<Integer, MerchantOffer> preservedMap = new HashMap<>();
+        if (lockedIndices != null) {
+            for (int idx : lockedIndices) {
+                if (idx >= 0 && idx < oldOffers.size()) {
+                    preservedMap.put(idx, oldOffers.get(idx));
+                }
             }
         }
 
         int targetTradeCount;
         if (!preservedMap.isEmpty()) {
-            // Add an extra trade slot whenever cycling with locked trades!
-            targetTradeCount = currentOffers.size() + 1;
+            // Locked trades exist -> add +1 trade slot
+            targetTradeCount = Math.max(oldOffers.size() + 1, 2);
         } else {
-            // Reset to initial 2 trades when no trades are locked
+            // No locked trades -> reset to 2 fresh trades
             targetTradeCount = 2;
         }
 
-        List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, targetTradeCount + 8);
+        int neededFresh = Math.max(targetTradeCount - preservedMap.size(), 1);
+        List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, oldOffers, neededFresh + 4);
 
         MerchantOffers finalOffers = new MerchantOffers();
         int freshIdx = 0;
 
         for (int i = 0; i < targetTradeCount; i++) {
             if (preservedMap.containsKey(i)) {
-                // Keep the saved/locked trade intact in its slot!
                 finalOffers.add(preservedMap.get(i));
             } else if (freshIdx < freshOffers.size()) {
                 finalOffers.add(freshOffers.get(freshIdx++));
             }
         }
 
-        // Fill any remaining slots
         while (finalOffers.size() < targetTradeCount && freshIdx < freshOffers.size()) {
             finalOffers.add(freshOffers.get(freshIdx++));
         }
 
+        for (MerchantOffer fallback : oldOffers) {
+            if (finalOffers.size() >= targetTradeCount) break;
+            finalOffers.add(fallback.copy());
+        }
+
         currentOffers.clear();
         currentOffers.addAll(finalOffers);
+        trader.overrideOffers(currentOffers);
+
+        if (player.containerMenu instanceof MerchantMenu menu) {
+            menu.setOffers(currentOffers);
+            try {
+                menu.slotsChanged(((MerchantMenuAccessor) menu).getTradeContainer());
+            } catch (Throwable ignored) {
+            }
+        }
 
         syncOffers(trader, player);
         player.level().playSound(null, player.blockPosition(), SoundEvents.VILLAGER_WORK_LIBRARIAN, SoundSource.PLAYERS, 1.0f, 1.0f);
     }
 
-    /**
-     * Ensures Fletcher trades strictly follow:
-     * - Sell: 1 Stick -> 1 Emerald
-     * - Buy: 1 Stick -> 2 Apples
-     * - Removes any conflicting stick trades (e.g. 32 sticks -> 1 emerald)
-     */
     public static void customizeVillagerOffers(Villager villager) {
         MerchantOffers offers = villager.getOffers();
         if (offers == null) return;
 
-        // Maximize all enchantments
         for (MerchantOffer offer : offers) {
             maximizeEnchantments(offer.getResult());
         }
 
         if (villager.getVillagerData().profession().is(VillagerProfession.FLETCHER)) {
-            boolean alreadyCustomized = false;
+            boolean hasStickEmerald = false;
+            boolean hasStickApple = false;
             for (MerchantOffer offer : offers) {
-                if (offer.getCostA().is(Items.STICK) && offer.getCostA().getCount() == 1 && offer.getResult().is(Items.EMERALD)) {
-                    alreadyCustomized = true;
-                    break;
+                if (offer.getCostA().is(Items.STICK) && offer.getCostA().getCount() == 1) {
+                    if (offer.getResult().is(Items.EMERALD)) hasStickEmerald = true;
+                    if (offer.getResult().is(Items.APPLE)) hasStickApple = true;
                 }
             }
 
-            if (!alreadyCustomized) {
-                // Remove conflicting stick trades
-                offers.removeIf(offer -> {
-                    ItemStack cost = offer.getCostA();
-                    ItemStack res = offer.getResult();
-                    if (cost.is(Items.STICK) && res.is(Items.EMERALD)) return true;
-                    if (cost.is(Items.STICK) && res.is(Items.APPLE)) return true;
-                    return false;
-                });
-
-                // 1 Stick -> 1 Emerald
+            if (!hasStickEmerald) {
                 offers.add(0, new MerchantOffer(
                         new ItemCost(Items.STICK, 1),
                         Optional.empty(),
                         new ItemStack(Items.EMERALD, 1),
                         0, 999999, 2, 0.05f
                 ));
-
-                // 1 Stick -> 2 Apples
-                offers.add(1, new MerchantOffer(
+            }
+            if (!hasStickApple) {
+                int insertPos = Math.min(1, offers.size());
+                offers.add(insertPos, new MerchantOffer(
                         new ItemCost(Items.STICK, 1),
                         Optional.empty(),
                         new ItemStack(Items.APPLE, 2),
@@ -202,12 +208,7 @@ public class TradeHelper {
         }
     }
 
-    /**
-     * Generates fresh trades depending on villager profession.
-     * ONLY Librarians trade Enchanted Books!
-     * Carpenters, Farmers, Armorers, etc. generate their authentic profession trades!
-     */
-    private static List<MerchantOffer> generateFreshTrades(Merchant trader, ServerPlayer player, int count) {
+    private static List<MerchantOffer> generateFreshTrades(Merchant trader, ServerPlayer player, MerchantOffers oldOffers, int count) {
         List<MerchantOffer> list = new ArrayList<>();
         Random random = new Random();
 
@@ -215,66 +216,120 @@ public class TradeHelper {
             ServerLevel serverLevel = (ServerLevel) player.level();
             VillagerData data = villager.getVillagerData();
             Holder<VillagerProfession> profHolder = data.profession();
-            VillagerProfession prof = profHolder.value();
 
-            // 1. FLETCHER: Stick -> Emerald / Apples, Bows, Arrows
+            // 1. LIBRARIAN: Rolls max-level enchanted books for emeralds
+            if (profHolder.is(VillagerProfession.LIBRARIAN)) {
+                generateEnchantedBookTrades(list, serverLevel, count, random);
+                return list;
+            }
+
+            // 2. FLETCHER: Pinned stick -> emerald and stick -> apple, plus authentic bows/arrows
             if (profHolder.is(VillagerProfession.FLETCHER)) {
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.EMERALD, 1), 0, 999999, 2, 0.05f));
                 list.add(new MerchantOffer(new ItemCost(Items.STICK, 1), Optional.empty(), new ItemStack(Items.APPLE, 2), 0, 999999, 2, 0.05f));
-                List<MerchantOffer> extra = new ArrayList<>();
-                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
-                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.BOW, 1), 0, 999999, 2, 0.05f));
-                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 3), Optional.empty(), new ItemStack(Items.CROSSBOW, 1), 0, 999999, 2, 0.05f));
-                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), new ItemStack(Items.FLINT, 10), 0, 999999, 2, 0.05f));
-                extra.add(new MerchantOffer(new ItemCost(Items.EMERALD, 5), Optional.empty(), new ItemStack(Items.SPECTRAL_ARROW, 16), 0, 999999, 2, 0.05f));
-                Collections.shuffle(extra, random);
-                list.addAll(extra);
+
+                ItemStack bow = new ItemStack(Items.BOW);
+                maximizeEnchantments(bow);
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 2), Optional.empty(), bow, 0, 999999, 5, 0.05f));
+
+                ItemStack crossbow = new ItemStack(Items.CROSSBOW);
+                maximizeEnchantments(crossbow);
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 3), Optional.empty(), crossbow, 0, 999999, 5, 0.05f));
+
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.ARROW, 16), 0, 999999, 2, 0.05f));
+                list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.SPECTRAL_ARROW, 8), 0, 999999, 2, 0.05f));
                 return list;
             }
 
-            // 2. LIBRARIAN ONLY: Max level enchanted books costing strictly emeralds
-            if (profHolder.is(VillagerProfession.LIBRARIAN)) {
-                try {
-                    var lookup = serverLevel.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
-                    List<Holder.Reference<Enchantment>> enchants = new ArrayList<>(lookup.listElements().toList());
-                    Collections.shuffle(enchants, random);
-
-                    for (var holder : enchants) {
-                        if (list.size() >= count + 6) break;
-
-                        ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-                        ItemEnchantments.Mutable mutable = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
-                        mutable.set(holder, holder.value().getMaxLevel());
-                        book.set(DataComponents.STORED_ENCHANTMENTS, mutable.toImmutable());
-
-                        int emeraldCost = 5 + random.nextInt(20);
-                        list.add(new MerchantOffer(new ItemCost(Items.EMERALD, emeraldCost), Optional.empty(), book, 0, 999999, 5, 0.05f));
-                    }
-                } catch (Exception e) {
-                    list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.BOOKSHELF, 1), 0, 999999, 2, 0.05f));
-                }
-                return list;
-            }
-
-            // 3. ALL OTHER PROFESSIONS (Carpenter, Farmer, Armorer, Weaponsmith, Toolsmith, Butcher, Cleric, etc.):
-            // Generate authentic trades matching this profession!
-            MerchantOffers pool = new MerchantOffers();
-            for (int lvl = 1; lvl <= 5; lvl++) {
-                ResourceKey<TradeSet> key = prof.getTrades(lvl);
-                if (key != null) {
-                    ((AbstractVillagerAccessor) villager).easygame$addOffersFromTradeSet(serverLevel, pool, key);
-                }
-            }
-            for (MerchantOffer o : pool) {
-                MerchantOffer copy = o.copy();
-                maximizeEnchantments(copy.getResult());
-                list.add(copy);
-            }
-            Collections.shuffle(list, random);
+            // 3. ALL OTHER PROFESSIONS (Carpenter, Farmer, Armorer, Toolsmith, Cleric, etc.):
+            // Roll authentic profession trades safely using native villager trade evaluation
+            rollAuthenticTrades(villager, oldOffers, list, count);
             return list;
         }
 
+        // Non-villager trader (e.g. Wandering Trader)
+        if (oldOffers != null) {
+            for (MerchantOffer o : oldOffers) {
+                if (list.size() >= count) break;
+                list.add(o.copy());
+            }
+        }
         return list;
+    }
+
+    private static void rollAuthenticTrades(Villager villager, MerchantOffers oldOffers, List<MerchantOffer> list, int count) {
+        for (int roll = 0; roll < 4 && list.size() < count; roll++) {
+            villager.setOffers(null);
+            MerchantOffers rolled = villager.getOffers();
+            if (rolled != null && !rolled.isEmpty()) {
+                for (MerchantOffer o : rolled) {
+                    if (list.size() >= count) break;
+                    MerchantOffer copy = o.copy();
+                    maximizeEnchantments(copy.getResult());
+
+                    boolean duplicate = false;
+                    for (MerchantOffer existing : list) {
+                        if (ItemStack.matches(existing.getResult(), copy.getResult()) &&
+                            ItemStack.matches(existing.getCostA(), copy.getCostA())) {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (!duplicate) {
+                        list.add(copy);
+                    }
+                }
+            }
+        }
+
+        if (oldOffers != null) {
+            for (MerchantOffer o : oldOffers) {
+                if (list.size() >= count) break;
+                MerchantOffer copy = o.copy();
+                maximizeEnchantments(copy.getResult());
+                boolean duplicate = false;
+                for (MerchantOffer existing : list) {
+                    if (ItemStack.matches(existing.getResult(), copy.getResult()) &&
+                        ItemStack.matches(existing.getCostA(), copy.getCostA())) {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (!duplicate) {
+                    list.add(copy);
+                }
+            }
+        }
+
+        if (list.isEmpty()) {
+            list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.IRON_INGOT, 4), 0, 999999, 2, 0.05f));
+        }
+    }
+
+    private static void generateEnchantedBookTrades(List<MerchantOffer> list, ServerLevel serverLevel, int count, Random random) {
+        try {
+            var lookup = serverLevel.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
+            List<Holder.Reference<Enchantment>> enchants = new ArrayList<>(lookup.listElements().toList());
+            Collections.shuffle(enchants, random);
+
+            for (var holder : enchants) {
+                if (list.size() >= count) break;
+
+                ItemStack book = EnchantmentHelper.createBook(new EnchantmentInstance(holder, holder.value().getMaxLevel()));
+                int emeraldCost = 5 + random.nextInt(20);
+                list.add(new MerchantOffer(
+                        new ItemCost(Items.EMERALD, emeraldCost),
+                        Optional.empty(),
+                        book,
+                        0,
+                        999999,
+                        5,
+                        0.05f
+                ));
+            }
+        } catch (Exception e) {
+            list.add(new MerchantOffer(new ItemCost(Items.EMERALD, 1), Optional.empty(), new ItemStack(Items.BOOKSHELF, 1), 0, 999999, 2, 0.05f));
+        }
     }
 
     private static void syncOffers(Merchant trader, ServerPlayer player) {
@@ -282,13 +337,15 @@ public class TradeHelper {
         if (trader instanceof Villager villager) {
             level = villager.getVillagerData().level();
         }
+        MerchantOffers offers = trader.getOffers();
         player.sendMerchantOffers(
                 player.containerMenu.containerId,
-                trader.getOffers(),
+                offers,
                 level,
                 trader.getVillagerXp(),
                 trader.showProgressBar(),
                 trader.canRestock()
         );
+        trader.setTradingPlayer(player);
     }
 }

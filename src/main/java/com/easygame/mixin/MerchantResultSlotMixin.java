@@ -11,11 +11,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(MerchantResultSlot.class)
-public class MerchantResultSlotMixin {
+public abstract class MerchantResultSlotMixin {
 
-    /**
-     * Requirement: Every single trade gives 3 full bars/levels of XP all the time.
-     */
     @Inject(method = "onTake", at = @At("TAIL"), require = 0)
     private void onTakeTradeResult(Player player, ItemStack stack, CallbackInfo ci) {
         if (!player.level().isClientSide() && stack != null && !stack.isEmpty()) {

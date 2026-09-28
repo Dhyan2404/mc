@@ -42,8 +42,10 @@ object EnchantmentDescriptions {
         "breach" to "Reduces target armor effectiveness against Mace attacks by 15% per level.",
         "wind_burst" to "Emits a wind burst upon falling Mace smash attack, launching you upward.",
         "mending" to "Repairs item durability using collected experience orbs (2 durability per XP).",
-        "curse_of_binding" to "Armor item cannot be removed from equipment slot once put on.",
-        "curse_of_vanishing" to "Item completely disappears upon death instead of dropping."
+        "binding_curse" to "Armor item cannot be removed from equipment slot once put on.",
+        "vanishing_curse" to "Item completely disappears upon death instead of dropping.",
+        "soul_speed" to "Boosts movement speed on Soul Sand and Soul Soil by 30% + 10% per level.",
+        "swift_sneak" to "Increases crouching movement speed by 15% per level (up to 75%)."
     )
 
     fun getDescription(enchantmentPath: String): String? {

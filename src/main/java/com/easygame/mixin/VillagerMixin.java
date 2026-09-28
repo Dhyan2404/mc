@@ -25,10 +25,6 @@ public class VillagerMixin {
         }
     }
 
-    /**
-     * Requirement: No trade limits, no caps.
-     * Villagers can always restock and never get capped.
-     */
     @Inject(method = "canRestock", at = @At("HEAD"), cancellable = true, require = 0)
     private void onCanRestock(CallbackInfoReturnable<Boolean> cir) {
         cir.setReturnValue(true);
