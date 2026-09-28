@@ -6,6 +6,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.MerchantScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.world.entity.player.Inventory;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MerchantScreen.class)
 public abstract class MerchantScreenMixin extends AbstractContainerScreen<MerchantMenu> {
@@ -47,6 +49,12 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         return false;
     }
 
+    @Inject(method = "init", at = @At("HEAD"))
+    private void onInitHead(CallbackInfo ci) {
+        // Clear all previous locks when opening a merchant screen
+        EasyGameClient.INSTANCE.clearLocks();
+    }
+
     @Inject(method = "init", at = @At("RETURN"), require = 0)
     private void onInit(CallbackInfo ci) {
         // Hide the inventory label so the buttons fit cleanly inside the box without text overlap
@@ -63,12 +71,14 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
             this.addRenderableWidget(cycleButton);
 
             // Lock / Save Trade Button inside the box
-            boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton = Button.builder(
-                    Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
+                    Component.literal(EasyGameClient.INSTANCE.isLocked(this.shopItem) ? "§6★ §eSaved" : "§7☆ §fSave"),
                     btn -> {
-                        boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
-                        btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                        MerchantOffers offers = this.menu.getOffers();
+                        if (offers != null && this.shopItem >= 0 && this.shopItem < offers.size()) {
+                            boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
+                            btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                        }
                     }
             )
             .bounds(this.leftPos + 161, this.topPos + 58, 54, 20)
@@ -95,12 +105,14 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
             this.addRenderableWidget(cycleButton);
 
             // Lock / Save Trade Button positioned inside the box (between trade slots and inventory)
-            boolean initialLocked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton = Button.builder(
-                    Component.literal(initialLocked ? "§6★ §eSaved" : "§7☆ §fSave"),
+                    Component.literal(EasyGameClient.INSTANCE.isLocked(this.shopItem) ? "§6★ §eSaved" : "§7☆ §fSave"),
                     btn -> {
-                        boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
-                        btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                        MerchantOffers offers = this.menu.getOffers();
+                        if (offers != null && this.shopItem >= 0 && this.shopItem < offers.size()) {
+                            boolean locked = EasyGameClient.INSTANCE.toggleLock(this.shopItem);
+                            btn.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                        }
                     }
             )
             .bounds(this.leftPos + 188, this.topPos + 58, 80, 20)
@@ -110,11 +122,35 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         }
     }
 
-    @Inject(method = "containerTick", at = @At("RETURN"), require = 0)
-    private void onContainerTick(CallbackInfo ci) {
+    @Inject(method = "postButtonClick", at = @At("RETURN"), require = 0)
+    private void onPostButtonClick(CallbackInfo ci) {
         if (this.saveTradeButton != null) {
             boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
             this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+        }
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"))
+    private void onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() == 0) { // Left click
+            double mouseX = event.x();
+            double mouseY = event.y();
+            MerchantOffers offers = this.menu.getOffers();
+            if (offers != null && !offers.isEmpty()) {
+                // If clicking directly in the star toggle area of any trade button in the list
+                if (mouseX >= this.leftPos + 70 && mouseX <= this.leftPos + 92) {
+                    if (mouseY >= this.topPos + 18 && mouseY < this.topPos + 18 + 7 * 20) {
+                        int slot = (int) ((mouseY - (this.topPos + 18)) / 20) + this.scrollOff;
+                        if (slot >= 0 && slot < offers.size()) {
+                            boolean locked = EasyGameClient.INSTANCE.toggleLock(slot);
+                            this.shopItem = slot;
+                            if (this.saveTradeButton != null) {
+                                this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -123,18 +159,28 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
         MerchantOffers offers = this.menu.getOffers();
         if (offers == null || offers.isEmpty()) return;
 
-        // Render star indicator on each saved trade button in the list
+        // Keep shopItem within valid bounds
+        if (this.shopItem < 0 || this.shopItem >= offers.size()) {
+            this.shopItem = 0;
+        }
+
+        // Dynamically update save button text every frame to strictly reflect currently selected trade
+        if (this.saveTradeButton != null) {
+            boolean locked = EasyGameClient.INSTANCE.isLocked(this.shopItem);
+            this.saveTradeButton.setMessage(Component.literal(locked ? "§6★ §eSaved" : "§7☆ §fSave"));
+        }
+
+        // Render star indicator on each trade button in the list
         for (int i = 0; i < 7; i++) {
             int tradeIndex = i + this.scrollOff;
-            if (tradeIndex < offers.size() && EasyGameClient.INSTANCE.isLocked(tradeIndex)) {
+            if (tradeIndex < offers.size()) {
                 int buttonY = this.topPos + 18 + (i * 20);
-                extractor.text(this.font, "§6★", this.leftPos + 78, buttonY + 6, 0xFFFFD700, true);
+                if (EasyGameClient.INSTANCE.isLocked(tradeIndex)) {
+                    extractor.text(this.font, "§6★", this.leftPos + 78, buttonY + 6, 0xFFFFD700, true);
+                } else if (mouseX >= this.leftPos + 70 && mouseX <= this.leftPos + 92 && mouseY >= buttonY && mouseY < buttonY + 20) {
+                    extractor.text(this.font, "§7☆", this.leftPos + 78, buttonY + 6, 0xFFAAAAAA, false);
+                }
             }
         }
-    }
-
-    @Inject(method = "onClose", at = @At("HEAD"), require = 0)
-    private void onScreenClose(CallbackInfo ci) {
-        EasyGameClient.INSTANCE.clearLocks();
     }
 }

@@ -114,10 +114,14 @@ public class TradeHelper {
         }
 
         Map<Integer, MerchantOffer> preservedMap = new HashMap<>();
+        int maxLockedIdx = -1;
         if (lockedIndices != null) {
             for (int idx : lockedIndices) {
                 if (idx >= 0 && idx < oldOffers.size()) {
                     preservedMap.put(idx, oldOffers.get(idx));
+                    if (idx > maxLockedIdx) {
+                        maxLockedIdx = idx;
+                    }
                 }
             }
         }
@@ -127,35 +131,22 @@ public class TradeHelper {
         // If 1 saved: 1 + 2 = 3 trades total (1 saved remains, 1 refreshed, 1 new 3rd trade appears).
         // If 2 saved: 2 + 2 = 4 trades total (2 saved remain, 2 new trades appear).
         // If N saved: N + 2 trades total.
-        int targetTradeCount = preservedMap.size() + 2;
+        int targetTradeCount = Math.max(preservedMap.size() + 2, maxLockedIdx + 1);
 
-        int neededFresh = 2;
+        int neededFresh = Math.max(2, targetTradeCount - preservedMap.size());
         List<MerchantOffer> freshOffers = generateFreshTrades(trader, player, oldOffers, neededFresh + 6);
 
         MerchantOffer[] slots = new MerchantOffer[targetTradeCount];
 
-        // 1. Place preserved offers at their original slot positions if within target range
-        List<MerchantOffer> overflowPreserved = new ArrayList<>();
+        // 1. Place preserved offers at their exact original slot positions
         for (Map.Entry<Integer, MerchantOffer> entry : preservedMap.entrySet()) {
             int idx = entry.getKey();
             if (idx < targetTradeCount) {
                 slots[idx] = entry.getValue();
-            } else {
-                overflowPreserved.add(entry.getValue());
             }
         }
 
-        // 2. If any preserved offer was beyond targetTradeCount, place into the first free slot
-        for (MerchantOffer overflow : overflowPreserved) {
-            for (int i = 0; i < targetTradeCount; i++) {
-                if (slots[i] == null) {
-                    slots[i] = overflow;
-                    break;
-                }
-            }
-        }
-
-        // 3. Fill all empty slots with fresh trades (there are exactly 2 empty slots!)
+        // 2. Fill all empty slots with fresh trades
         int freshIdx = 0;
         for (int i = 0; i < targetTradeCount; i++) {
             if (slots[i] == null) {
@@ -308,6 +299,17 @@ public class TradeHelper {
                     if (list.size() >= count) break;
                     MerchantOffer copy = o.copy();
                     maximizeEnchantments(copy.getResult());
+                    if (copy.getResult().is(Items.ENCHANTED_BOOK)) {
+                        copy = new MerchantOffer(
+                                new ItemCost(Items.EMERALD, 10),
+                                Optional.empty(),
+                                copy.getResult().copy(),
+                                0,
+                                999999,
+                                copy.getXp() > 0 ? copy.getXp() : 5,
+                                0.05f
+                        );
+                    }
 
                     boolean duplicate = false;
                     for (MerchantOffer existing : list) {
@@ -329,6 +331,17 @@ public class TradeHelper {
                 if (list.size() >= count) break;
                 MerchantOffer copy = o.copy();
                 maximizeEnchantments(copy.getResult());
+                if (copy.getResult().is(Items.ENCHANTED_BOOK)) {
+                    copy = new MerchantOffer(
+                            new ItemCost(Items.EMERALD, 10),
+                            Optional.empty(),
+                            copy.getResult().copy(),
+                            0,
+                            999999,
+                            copy.getXp() > 0 ? copy.getXp() : 5,
+                            0.05f
+                    );
+                }
                 boolean duplicate = false;
                 for (MerchantOffer existing : list) {
                     if (ItemStack.matches(existing.getResult(), copy.getResult()) &&
