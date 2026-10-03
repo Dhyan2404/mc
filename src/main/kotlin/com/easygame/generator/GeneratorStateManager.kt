@@ -122,7 +122,7 @@ object GeneratorStateManager {
                 )
 
                 player.sendSystemMessage(
-                    Component.literal("§6§l[Generator] §a✔ Collected §e${stored}x ${item.description.string}§a!")
+                    Component.literal("§6§l[Generator] §a✔ Collected §e${stored}x ${ItemStack(item).hoverName.string}§a!")
                 )
                 player.sendSystemMessage(
                     Component.literal("§7Tier ${result.tier.tier} (${result.tier.colorCode}${result.tier.name}§7) §8| §fSpeed: §b1 every ${result.tier.intervalSeconds}s §8| §7Storage: §e0/2048")
@@ -132,7 +132,7 @@ object GeneratorStateManager {
                 val remainingSecs = String.format(Locale.US, "%.1f", remainingTicks / 20.0)
 
                 player.sendSystemMessage(
-                    Component.literal("§6§l[Generator] §fResource: §e${item.description.string} §8| §a0 Stored §8| §7Tier ${result.tier.tier} (${result.tier.colorCode}${result.tier.name}§7)")
+                    Component.literal("§6§l[Generator] §fResource: §e${ItemStack(item).hoverName.string} §8| §a0 Stored §8| §7Tier ${result.tier.tier} (${result.tier.colorCode}${result.tier.name}§7)")
                 )
                 player.sendSystemMessage(
                     Component.literal("§7Status: §aActive §8| §7Next drop in: §e${remainingSecs}s §8| §b1 every ${result.tier.intervalSeconds}s")

@@ -93,7 +93,7 @@ object BlockGenerator {
         put(Blocks.BLACKSTONE, BlockMapping(Items.BLACKSTONE, 3))
 
         // TIER 4: Copper & Glass (4.5s)
-        put(Blocks.COPPER_BLOCK, BlockMapping(Items.COPPER_INGOT, 4))
+        Blocks.COPPER_BLOCK.asList().forEach { put(it, BlockMapping(Items.COPPER_INGOT, 4)) }
         put(Blocks.RAW_COPPER_BLOCK, BlockMapping(Items.RAW_COPPER, 4))
         put(Blocks.COPPER_ORE, BlockMapping(Items.COPPER_INGOT, 4))
         put(Blocks.DEEPSLATE_COPPER_ORE, BlockMapping(Items.COPPER_INGOT, 4))
@@ -183,7 +183,7 @@ object BlockGenerator {
         if (item == Items.AIR) {
             return BlockMapping(Items.COBBLESTONE, 1)
         }
-        val hardness = block.defaultBlockState().destroySpeed
+        val hardness = block.defaultDestroyTime()
         val tier = when {
             hardness >= 50.0f -> 14
             hardness >= 25.0f -> 11

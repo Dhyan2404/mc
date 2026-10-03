@@ -86,13 +86,13 @@ object EasyGame : ModInitializer {
             }
         }
 
-        // Unlimited spawner activation with spawn egg (egg is NOT consumed)
+        // Spawner interaction: Spawn egg binding OR Block Generator inspection & collection
         UseBlockCallback.EVENT.register { player, level, hand, hitResult ->
-            val stack = player.getItemInHand(hand)
-            if (stack.item is SpawnEggItem) {
-                val pos = hitResult.blockPos
-                val blockEntity = level.getBlockEntity(pos)
-                if (blockEntity is SpawnerBlockEntity) {
+            val pos = hitResult.blockPos
+            val blockEntity = level.getBlockEntity(pos)
+            if (blockEntity is SpawnerBlockEntity) {
+                val stack = player.getItemInHand(hand)
+                if (stack.item is SpawnEggItem) {
                     val entityType = SpawnEggItem.getType(stack)
                     if (entityType != null) {
                         if (!level.isClientSide && level is ServerLevel) {
@@ -127,9 +127,23 @@ object EasyGame : ModInitializer {
                         player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true)
                         return@register InteractionResult.SUCCESS
                     }
+                } else {
+                    // Block Generator right-click to inspect and collect
+                    if (!level.isClientSide && level is ServerLevel && player is ServerPlayer) {
+                        com.easygame.generator.GeneratorStateManager.handleRightClick(player, level, pos)
+                    }
+                    player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true)
+                    return@register InteractionResult.SUCCESS
                 }
             }
             InteractionResult.PASS
+        }
+
+        // Drop stored generator items when spawner is broken
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register { world, _, pos, state, _ ->
+            if (!world.isClientSide && world is ServerLevel && state.`is`(net.minecraft.world.level.block.Blocks.SPAWNER)) {
+                com.easygame.generator.GeneratorStateManager.onSpawnerBroken(world, pos)
+            }
         }
     }
 
