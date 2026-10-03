@@ -12,6 +12,7 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.ItemLore
+import net.minecraft.world.item.component.TypedEntityData
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
@@ -548,6 +549,23 @@ object BlockGenerator {
             putInt("GeneratorStack", stackLevel)
         }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag))
+
+        // Block entity data automatically applied to SpawnerBlockEntity by vanilla when placed
+        val spawnerType = BuiltInRegistries.BLOCK_ENTITY_TYPE.getValue(Identifier.parse("minecraft:spawner"))!!
+        val beTag = CompoundTag().apply {
+            val spawnDataTag = CompoundTag().apply {
+                val entityTag = CompoundTag().apply {
+                    putString("id", "minecraft:item")
+                    putString("GeneratorItem", itemId)
+                    putInt("GeneratorStack", stackLevel)
+                }
+                put("entity", entityTag)
+            }
+            put("SpawnData", spawnDataTag)
+            putInt("RequiredPlayerRange", 0)
+        }
+        stack.set(DataComponents.BLOCK_ENTITY_DATA, TypedEntityData.of(spawnerType, beTag))
+        stack.set(DataComponents.MAX_STACK_SIZE, 64)
 
         return stack
     }
