@@ -6,7 +6,9 @@
 		"MerchantScreenMixin",
 		"AbstractContainerScreenMixin",
 		"GuiMixin",
-		"TitleScreenMixin"
+		"TitleScreenMixin",
+		"SpawnerRendererMixin",
+		"SpawnerRenderStateMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

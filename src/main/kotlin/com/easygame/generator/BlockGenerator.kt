@@ -37,8 +37,28 @@ object BlockGenerator {
         12 to RarityTier(12, "Emerald", "§2", 700),     // 35.0s
         13 to RarityTier(13, "Diamond", "§b", 900),     // 45.0s
         14 to RarityTier(14, "Netherite & End", "§4", 1200), // 60.0s
-        15 to RarityTier(15, "Mythic & Relic", "§6§l", 1600)  // 80.0s
     )
+
+    fun getTierGlowColor(tier: Int): Int {
+        return when (tier) {
+            1 -> 0xFF9E9E9E.toInt() // Common: Stone gray
+            2 -> 0xFF4CAF50.toInt() // Organic: Foliage green
+            3 -> 0xFF424242.toInt() // Fuel: Dark coal
+            4 -> 0xFFD87040.toInt() // Copper: Copper orange
+            5 -> 0xFFFFFFFF.toInt() // Iron: Bright white
+            6 -> 0xFF2196F3.toInt() // Lapis: Vibrant blue
+            7 -> 0xFFFF1744.toInt() // Redstone: Bright neon red
+            8 -> 0xFFFFD700.toInt() // Gold: Gold yellow
+            9 -> 0xFFE0E0E0.toInt() // Quartz & Glow: Shimmering quartz
+            10 -> 0xFFAB47BC.toInt() // Crystal & Prism: Amethyst purple
+            11 -> 0xFF4A148C.toInt() // Obsidian & Resin: Deep void obsidian
+            12 -> 0xFF00E676.toInt() // Emerald: Brilliant emerald green
+            13 -> 0xFF00E5FF.toInt() // Diamond: Radiant cyan diamond
+            14 -> 0xFFFF3D00.toInt() // Netherite & End: Fiery Netherite crimson
+            15 -> 0xFFFFEA00.toInt() // Mythic & Relic: Celestial mythic gold
+            else -> 0xFFFFFFFF.toInt()
+        }
+    }
 
     data class BlockMapping(
         val item: Item,

@@ -47,16 +47,31 @@ object GeneratorStateManager {
 
         val interval = result.tier.intervalTicks
 
-        // Ambient particles from surrounding blocks towards center spawner
-        if (data.progressTicks % 20 == 0) {
+        // 1. Continuous ambient glow particles swirling around the spawner every 5 ticks
+        if (data.progressTicks % 5 == 0) {
+            level.sendParticles(
+                ParticleTypes.GLOW,
+                pos.x + 0.5, pos.y + 0.5, pos.z + 0.5,
+                2, 0.35, 0.35, 0.35, 0.02
+            )
+        }
+
+        // 2. Flowing energy glyphs from surrounding blocks towards center spawner every 10 ticks
+        if (data.progressTicks % 10 == 0) {
             val randomOffset = BlockGenerator.NEIGHBOR_OFFSETS.random()
             val fromPos = pos.offset(randomOffset)
             level.sendParticles(
                 ParticleTypes.ENCHANT,
+                fromPos.x + 0.5, fromPos.y + 1.05, fromPos.z + 0.5,
+                4,
+                (pos.x - fromPos.x) * 0.25, 0.15, (pos.z - fromPos.z) * 0.25,
+                0.25
+            )
+            // Rising glow on the ring block itself so it visually differentiates
+            level.sendParticles(
+                ParticleTypes.WAX_ON,
                 fromPos.x + 0.5, fromPos.y + 1.1, fromPos.z + 0.5,
-                3,
-                (pos.x - fromPos.x) * 0.2, 0.1, (pos.z - fromPos.z) * 0.2,
-                0.2
+                1, 0.1, 0.1, 0.1, 0.01
             )
         }
 
