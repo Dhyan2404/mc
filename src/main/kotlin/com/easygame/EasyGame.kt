@@ -13,6 +13,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
+import net.minecraft.core.Registry
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
@@ -43,6 +44,13 @@ object EasyGame : ModInitializer {
 
     override fun onInitialize() {
         LOGGER.info("EasyGame initializing: unlimited trades, max enchants, trade cycling, trial chamber boosts, insta hoppers, survival /tp active!")
+
+        // Register custom generator crafting recipe (8 items/blocks + 1 spawner in middle)
+        Registry.register(
+            BuiltInRegistries.RECIPE_SERIALIZER,
+            id("generator_crafting"),
+            com.easygame.recipe.GeneratorRecipe.SERIALIZER
+        )
 
         // Register custom network payload using serverboundPlay()
         PayloadTypeRegistry.serverboundPlay().register(CycleTradesPayload.TYPE, CycleTradesPayload.STREAM_CODEC)
