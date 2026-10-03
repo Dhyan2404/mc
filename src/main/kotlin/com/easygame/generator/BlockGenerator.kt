@@ -1,11 +1,17 @@
 package com.easygame.generator
 
 import net.minecraft.core.BlockPos
+import net.minecraft.core.component.DataComponents
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.world.item.BlockItem
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.item.component.CustomData
+import net.minecraft.world.item.component.ItemLore
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
@@ -371,5 +377,196 @@ object BlockGenerator {
         val isActive = (count == 8)
 
         return SurroundingsResult(isActive, count, primaryBlock, mapping.item, tier)
+    }
+
+    private val ITEM_TIER_CACHE = ConcurrentHashMap<Item, RarityTier>()
+
+    fun getItemTier(item: Item): RarityTier {
+        return ITEM_TIER_CACHE.computeIfAbsent(item) { computeItemTier(it) }
+    }
+
+    private fun computeItemTier(item: Item): RarityTier {
+        val itemId = BuiltInRegistries.ITEM.getKey(item).path.lowercase()
+
+        val tierNum = when {
+            // TIER 15: Mythic & Relic (80.0s)
+            itemId in setOf(
+                "nether_star", "heavy_core", "dragon_egg", "dragon_breath",
+                "conduit", "beacon", "elytra", "mace", "ominous_trial_key",
+                "recovery_compass", "echo_shard", "enchanted_golden_apple",
+                "silence_armor_trim_smithing_template", "spire_armor_trim_smithing_template"
+            ) || itemId.contains("relic") || itemId.contains("mythic") ||
+            itemId.contains("command_block") || itemId.contains("bedrock") -> 15
+
+            // TIER 14: Netherite & End Realm (60.0s)
+            itemId.startsWith("netherite_") || itemId in setOf(
+                "ancient_debris", "netherite_scrap", "netherite_ingot",
+                "netherite_upgrade_smithing_template", "shulker_shell",
+                "popped_chorus_fruit", "end_crystal", "totem_of_undying",
+                "trident", "heart_of_the_sea", "nautilus_shell",
+                "breeze_rod", "wind_charge", "trial_key", "ominous_bottle"
+            ) || itemId.contains("shulker_box") || itemId.contains("chorus") ||
+            itemId.contains("respawn_anchor") || itemId.contains("lodestone") ||
+            itemId.contains("sniffer_egg") -> 14
+
+            // TIER 13: Diamond Tier (45.0s)
+            itemId.startsWith("diamond_") || itemId in setOf(
+                "diamond", "diamond_block", "enchanting_table", "jukebox",
+                "experience_bottle", "enchanted_book", "name_tag", "saddle",
+                "goat_horn"
+            ) || itemId.contains("armor_trim") -> 13
+
+            // TIER 12: Emerald Tier (35.0s)
+            itemId.startsWith("emerald_") || itemId in setOf(
+                "emerald", "emerald_block", "golden_apple", "golden_carrot",
+                "glistering_melon_slice", "music_disc", "rabbit_foot",
+                "scute", "turtle_scute", "armadillo_scute"
+            ) || itemId.startsWith("music_disc_") -> 12
+
+            // TIER 11: Obsidian, Sculk & Deep Void (28.0s)
+            itemId.contains("obsidian") || itemId.contains("sculk") || itemId.contains("resin") ||
+            itemId in setOf(
+                "disc_fragment_5", "glow_ink_sac", "firework_rocket",
+                "firework_star", "brewing_stand"
+            ) -> 11
+
+            // TIER 10: Crystal & Prism (22.0s)
+            itemId.contains("amethyst") || itemId.contains("prismarine") ||
+            itemId in setOf(
+                "sea_lantern", "sponge", "wet_sponge", "ghast_tear",
+                "blaze_rod", "blaze_powder", "magma_cream", "ender_eye",
+                "phantom_membrane"
+            ) -> 10
+
+            // TIER 9: Quartz & Glow (17.0s)
+            itemId.contains("quartz") || itemId.contains("glowstone") ||
+            itemId in setOf(
+                "shroomlight", "nether_wart", "honey_bottle", "honeycomb",
+                "fire_charge", "ender_pearl"
+            ) -> 9
+
+            // TIER 8: Gold (13.0s)
+            itemId.startsWith("golden_") || itemId.contains("gold") ||
+            itemId in setOf("clock", "bell") -> 8
+
+            // TIER 7: Redstone (10.0s)
+            itemId.contains("redstone") || itemId in setOf(
+                "piston", "sticky_piston", "repeater", "comparator",
+                "dispenser", "dropper", "observer", "target", "crafter",
+                "slime_ball", "slime_block", "daylight_detector", "compass"
+            ) -> 7
+
+            // TIER 6: Lapis & Ice (8.0s)
+            itemId.contains("lapis") || itemId.contains("ice") ||
+            itemId in setOf(
+                "cauldron", "minecart", "chest_minecart", "hopper_minecart",
+                "tnt_minecart", "furnace_minecart"
+            ) -> 6
+
+            // TIER 5: Iron (6.0s)
+            itemId.startsWith("iron_") || itemId.startsWith("chainmail_") ||
+            itemId.contains("iron") || itemId in setOf(
+                "shears", "flint_and_steel", "bucket", "water_bucket",
+                "lava_bucket", "milk_bucket", "shield", "crossbow",
+                "bow", "tnt", "hopper", "anvil", "blast_furnace"
+            ) -> 5
+
+            // TIER 4: Copper & Glass (4.5s)
+            itemId.startsWith("copper_") || itemId.contains("copper") ||
+            itemId.contains("glass") || itemId.contains("potion") ||
+            itemId in setOf(
+                "spyglass", "lightning_rod", "glass_bottle", "lead",
+                "cookie", "cake", "pumpkin_pie", "mushroom_stew",
+                "rabbit_stew", "beetroot_soup", "suspicious_stew", "lantern"
+            ) -> 4
+
+            // TIER 3: Fuel & Earth (3.5s)
+            itemId.contains("coal") || itemId.contains("charcoal") ||
+            itemId in setOf(
+                "clay_ball", "clay", "brick", "nether_brick", "paper",
+                "book", "leather", "string", "feather", "gunpowder",
+                "spider_eye", "fermented_spider_eye", "bone", "bone_meal",
+                "arrow", "spectral_arrow", "tipped_arrow", "ink_sac",
+                "flint", "basalt", "blackstone", "mud", "calcite", "dripstone_block"
+            ) -> 3
+
+            // TIER 2: Organic & Flora (2.5s)
+            itemId.contains("log") || itemId.contains("wood") || itemId.contains("stem") ||
+            itemId.contains("planks") || itemId.contains("leaves") || itemId.contains("sapling") ||
+            itemId.contains("flower") || itemId.contains("seeds") ||
+            itemId in setOf(
+                "wheat", "pitcher_pod", "apple", "bread", "porkchop",
+                "cooked_porkchop", "beef", "cooked_beef", "chicken",
+                "cooked_chicken", "mutton", "cooked_mutton", "rabbit",
+                "cooked_rabbit", "cod", "cooked_cod", "salmon",
+                "cooked_salmon", "tropical_fish", "pufferfish", "carrot",
+                "potato", "baked_potato", "poisonous_potato", "beetroot",
+                "sweet_berries", "glow_berries", "kelp", "dried_kelp",
+                "bamboo", "sugar_cane", "sugar", "egg", "rotten_flesh",
+                "stick", "bowl", "wool", "moss_block", "cactus", "pumpkin", "melon"
+            ) -> 2
+
+            // If it's a BlockItem, check block mapping
+            item is BlockItem -> {
+                getMapping(item.block).tier
+            }
+
+            // TIER 1: Common Default (1.5s)
+            else -> 1
+        }
+
+        return TIERS[tierNum] ?: TIERS[1]!!
+    }
+
+    fun createGeneratorItemStack(item: Item?, count: Int = 1, stackLevel: Int = 1): ItemStack {
+        val stack = ItemStack(Items.SPAWNER, count.coerceIn(1, 64))
+        if (item == null || item == Items.AIR) {
+            return stack
+        }
+
+        val tier = getItemTier(item)
+        val itemName = ItemStack(item).hoverName.string
+        val itemId = BuiltInRegistries.ITEM.getKey(item).toString()
+
+        stack.set(DataComponents.CUSTOM_NAME, Component.literal("§6§l${itemName} Generator"))
+        stack.set(
+            DataComponents.LORE,
+            ItemLore(
+                listOf(
+                    Component.literal("§7Rarity: §6Tier ${tier.tier} (${tier.colorCode}${tier.name}§7)"),
+                    Component.literal("§7Produces: §e$itemName"),
+                    Component.literal("§7Base Speed: §b1 every ${tier.intervalSeconds}s"),
+                    Component.literal("§e⚡ Stackable in 1 spot! Right-click placed gen to stack."),
+                    Component.literal("§d⛏ Silk Touch recovers all stacked gens + items!")
+                )
+            )
+        )
+
+        // Custom Data on the item
+        val tag = CompoundTag().apply {
+            putString("GeneratorItem", itemId)
+            putInt("GeneratorStack", stackLevel)
+        }
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag))
+
+        return stack
+    }
+
+    fun getGeneratorItem(stack: ItemStack): Item? {
+        if (!stack.`is`(Items.SPAWNER)) return null
+        val customData = stack.get(DataComponents.CUSTOM_DATA) ?: return null
+        val tag = customData.copyTag()
+        val itemIdStr = tag.getString("GeneratorItem").orElse(null) ?: return null
+        val id = Identifier.tryParse(itemIdStr) ?: return null
+        val item = BuiltInRegistries.ITEM.getValue(id)
+        if (item != Items.AIR) return item
+        return null
+    }
+
+    fun getGeneratorStackLevel(stack: ItemStack): Int {
+        if (!stack.`is`(Items.SPAWNER)) return 1
+        val customData = stack.get(DataComponents.CUSTOM_DATA) ?: return 1
+        val tag = customData.copyTag()
+        return tag.getInt("GeneratorStack").orElse(1).coerceAtLeast(1)
     }
 }

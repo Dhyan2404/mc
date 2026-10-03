@@ -2,6 +2,7 @@ package com.easygame.client.mixin;
 
 import com.easygame.client.render.GeneratorRenderAttachment;
 import com.easygame.generator.BlockGenerator;
+import com.easygame.mixin.BaseSpawnerAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -14,9 +15,16 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.BaseSpawner;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.SpawnData;
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -43,16 +51,44 @@ public class SpawnerRendererMixin {
         if (level == null) return;
         BlockPos pos = blockEntity.getBlockPos();
 
-        BlockGenerator.SurroundingsResult result = BlockGenerator.INSTANCE.checkSurroundings(level, pos);
         GeneratorRenderAttachment attachment = (GeneratorRenderAttachment) state;
 
-        if (result.isActive()) {
+        ItemStack renderStack = null;
+        int glowColor = 0xFFFFFFFF;
+
+        // 1. Check if configured standalone generator item is set in Spawner nextSpawnData
+        BaseSpawner spawner = blockEntity.getSpawner();
+        SpawnData spawnData = ((BaseSpawnerAccessor) spawner).getNextSpawnData();
+        CompoundTag entityTag = spawnData != null ? spawnData.getEntityToSpawn() : null;
+
+        if (entityTag != null && entityTag.getString("GeneratorItem").isPresent()) {
+            String itemId = entityTag.getString("GeneratorItem").get();
+            Identifier id = Identifier.tryParse(itemId);
+            if (id != null) {
+                Item item = BuiltInRegistries.ITEM.getValue(id);
+                if (item != Items.AIR) {
+                    renderStack = new ItemStack(item);
+                    BlockGenerator.RarityTier tier = BlockGenerator.INSTANCE.getItemTier(item);
+                    glowColor = BlockGenerator.INSTANCE.getTierGlowColor(tier.getTier());
+                }
+            }
+        }
+
+        // 2. Fallback to 8 surrounding blocks ring
+        if (renderStack == null) {
+            BlockGenerator.SurroundingsResult result = BlockGenerator.INSTANCE.checkSurroundings(level, pos);
+            if (result.isActive()) {
+                renderStack = new ItemStack(result.getBlock() != null ? result.getBlock() : result.getItem());
+                glowColor = BlockGenerator.INSTANCE.getTierGlowColor(result.getTier().getTier());
+            }
+        }
+
+        if (renderStack != null && !renderStack.isEmpty()) {
             // Null out vanilla mob displayEntity so no pig/zombie renders inside the generator
             state.displayEntity = null;
 
-            ItemStack stack = new ItemStack(result.getBlock() != null ? result.getBlock() : result.getItem());
-            attachment.easygame$setGeneratingStack(stack);
-            attachment.easygame$setGlowColor(BlockGenerator.INSTANCE.getTierGlowColor(result.getTier().getTier()));
+            attachment.easygame$setGeneratingStack(renderStack);
+            attachment.easygame$setGlowColor(glowColor);
 
             // Smooth continuous 360-degree rotation animation
             long time = System.currentTimeMillis();

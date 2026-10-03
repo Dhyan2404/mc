@@ -86,12 +86,13 @@ object EasyGame : ModInitializer {
             }
         }
 
-        // Spawner interaction: Spawn egg binding OR Block Generator inspection & collection
+        // Spawner interaction: Spawn egg binding OR Block Generator stacking / item config / collection
         UseBlockCallback.EVENT.register { player, level, hand, hitResult ->
             val pos = hitResult.blockPos
             val blockEntity = level.getBlockEntity(pos)
+            val stack = player.getItemInHand(hand)
+
             if (blockEntity is SpawnerBlockEntity) {
-                val stack = player.getItemInHand(hand)
                 if (stack.item is SpawnEggItem) {
                     val entityType = SpawnEggItem.getType(stack)
                     if (entityType != null) {
@@ -128,22 +129,50 @@ object EasyGame : ModInitializer {
                         return@register InteractionResult.SUCCESS
                     }
                 } else {
-                    // Block Generator right-click to inspect and collect
+                    // Block Generator right-click: stack spawners, configure items, or inspect & collect
                     if (!level.isClientSide && level is ServerLevel && player is ServerPlayer) {
-                        com.easygame.generator.GeneratorStateManager.handleRightClick(player, level, pos)
+                        com.easygame.generator.GeneratorStateManager.handleRightClick(player, level, pos, hand)
                     }
                     player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, true)
                     return@register InteractionResult.SUCCESS
+                }
+            } else if (!level.isClientSide && level is ServerLevel && stack.`is`(Items.SPAWNER)) {
+                // If placing a configured generator spawner item in the world
+                val genItem = com.easygame.generator.BlockGenerator.getGeneratorItem(stack)
+                if (genItem != null) {
+                    val placePos = pos.relative(hitResult.direction)
+                    val stackLevel = com.easygame.generator.BlockGenerator.getGeneratorStackLevel(stack)
+                    level.server.execute {
+                        val placedBe = level.getBlockEntity(placePos)
+                        if (placedBe is SpawnerBlockEntity) {
+                            val data = com.easygame.generator.GeneratorStateManager.getOrInit(placePos)
+                            data.customItem = genItem
+                            data.customTier = com.easygame.generator.BlockGenerator.getItemTier(genItem)
+                            data.stackCount = stackLevel
+                            com.easygame.generator.GeneratorStateManager.updateSpawnerData(level, placePos, data)
+                        }
+                    }
                 }
             }
             InteractionResult.PASS
         }
 
-        // Drop stored generator items when spawner is broken
-        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.AFTER.register { world, _, pos, state, _ ->
-            if (!world.isClientSide && world is ServerLevel && state.`is`(net.minecraft.world.level.block.Blocks.SPAWNER)) {
-                com.easygame.generator.GeneratorStateManager.onSpawnerBroken(world, pos)
+        // Generator Break Handling: Silk Touch recovers all stacked gens + stored items directly to inventory
+        net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register { world, player, pos, state, _ ->
+            if (!world.isClientSide && world is ServerLevel && player is ServerPlayer && state.`is`(net.minecraft.world.level.block.Blocks.SPAWNER)) {
+                val silkTouch = hasSilkTouch(player)
+                return@register com.easygame.generator.GeneratorStateManager.handleBreak(world, player, pos, silkTouch)
             }
+            true
+        }
+    }
+
+    private fun hasSilkTouch(player: ServerPlayer): Boolean {
+        if (player.hasInfiniteMaterials()) return true
+        val tool = player.mainHandItem
+        val enchants = tool.get(net.minecraft.core.component.DataComponents.ENCHANTMENTS) ?: return false
+        return enchants.keySet().any { holder ->
+            holder.unwrapKey().map { it.identifier().path == "silk_touch" }.orElse(false)
         }
     }
 
