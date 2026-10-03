@@ -238,7 +238,7 @@ object BlockGenerator {
                 else -> {
                     val key = BuiltInRegistries.BLOCK.getKey(block)
                     val directItem = BuiltInRegistries.ITEM.getValue(key)
-                    if (directItem != null && directItem != Items.AIR) directItem else Items.COBBLESTONE
+                    if (directItem != Items.AIR) directItem else Items.COBBLESTONE
                 }
             }
         }

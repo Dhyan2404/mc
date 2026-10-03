@@ -159,9 +159,15 @@ object GeneratorStateManager {
             player.sendSystemMessage(
                 Component.literal("§6§l[Generator] §cInactive: §7Place 8 matching resource blocks in a 3x3 around this spawner to generate items.")
             )
-            player.sendSystemMessage(
-                Component.literal("§7Current: §e${result.matchingCount}/8 $blockName §8| §715 Rarity Tiers supported (Coal to Nether Star)!")
-            )
+            if (result.matchingCount > 0) {
+                player.sendSystemMessage(
+                    Component.literal("§7Current: §e${result.matchingCount}/8 $blockName §8| §7Rarity: Tier ${result.tier.tier} (${result.tier.colorCode}${result.tier.name}§7, ${result.tier.intervalSeconds}s)!")
+                )
+            } else {
+                player.sendSystemMessage(
+                    Component.literal("§7Current: §e0/8 blocks §8| §7Place 8 matching blocks of ANY type to start generating!")
+                )
+            }
             return true
         }
     }
