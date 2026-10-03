@@ -9,6 +9,7 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.block.Block
 import net.minecraft.world.level.block.Blocks
+import java.util.concurrent.ConcurrentHashMap
 
 object BlockGenerator {
 
@@ -37,6 +38,7 @@ object BlockGenerator {
         12 to RarityTier(12, "Emerald", "§2", 700),     // 35.0s
         13 to RarityTier(13, "Diamond", "§b", 900),     // 45.0s
         14 to RarityTier(14, "Netherite & End", "§4", 1200), // 60.0s
+        15 to RarityTier(15, "Mythic & Relic", "§6§l", 1600)  // 80.0s
     )
 
     fun getTierGlowColor(tier: Int): Int {
@@ -195,21 +197,127 @@ object BlockGenerator {
         put(Blocks.VAULT, BlockMapping(Items.OMINOUS_TRIAL_KEY, 15))
     }
 
+    private val CACHE = ConcurrentHashMap<Block, BlockMapping>()
+
     fun getMapping(block: Block): BlockMapping {
+        return CACHE.computeIfAbsent(block) { computeMapping(it) }
+    }
+
+    private fun computeMapping(block: Block): BlockMapping {
         MAPPINGS[block]?.let { return it }
 
-        // Dynamic fallback mapping
-        val item = block.asItem()
+        // 1. Resolve valid drop item for every block (no Items.AIR)
+        var item = block.asItem()
         if (item == Items.AIR) {
-            return BlockMapping(Items.COBBLESTONE, 1)
+            item = when (block) {
+                Blocks.WATER, Blocks.BUBBLE_COLUMN -> Items.WATER_BUCKET
+                Blocks.LAVA -> Items.LAVA_BUCKET
+                Blocks.FIRE, Blocks.SOUL_FIRE -> Items.FIRE_CHARGE
+                Blocks.FARMLAND, Blocks.DIRT_PATH -> Items.DIRT
+                Blocks.PISTON_HEAD, Blocks.MOVING_PISTON -> Items.PISTON
+                Blocks.SWEET_BERRY_BUSH -> Items.SWEET_BERRIES
+                Blocks.COCOA -> Items.COCOA_BEANS
+                Blocks.FROSTED_ICE -> Items.ICE
+                Blocks.NETHER_PORTAL, Blocks.END_PORTAL -> Items.ENDER_PEARL
+                Blocks.END_GATEWAY -> Items.ENDER_EYE
+                Blocks.TRIPWIRE -> Items.STRING
+                Blocks.REDSTONE_WIRE -> Items.REDSTONE
+                Blocks.ATTACHED_PUMPKIN_STEM, Blocks.PUMPKIN_STEM -> Items.PUMPKIN_SEEDS
+                Blocks.ATTACHED_MELON_STEM, Blocks.MELON_STEM -> Items.MELON_SEEDS
+                Blocks.BEETROOTS -> Items.BEETROOT
+                Blocks.CARROTS -> Items.CARROT
+                Blocks.POTATOES -> Items.POTATO
+                Blocks.WALL_TORCH -> Items.TORCH
+                Blocks.SOUL_WALL_TORCH -> Items.SOUL_TORCH
+                Blocks.REDSTONE_WALL_TORCH -> Items.REDSTONE_TORCH
+                Blocks.SPAWNER -> Items.SPAWNER
+                Blocks.TRIAL_SPAWNER -> Items.TRIAL_SPAWNER
+                Blocks.VAULT -> Items.VAULT
+                Blocks.BEDROCK -> Items.BEDROCK
+                Blocks.END_PORTAL_FRAME -> Items.END_PORTAL_FRAME
+                else -> {
+                    val key = BuiltInRegistries.BLOCK.getKey(block)
+                    val directItem = BuiltInRegistries.ITEM.getValue(key)
+                    if (directItem != null && directItem != Items.AIR) directItem else Items.COBBLESTONE
+                }
+            }
         }
+
+        // 2. Classify into all 15 progressive rarity tiers
+        val id = BuiltInRegistries.BLOCK.getKey(block).path.lowercase()
         val hardness = block.defaultDestroyTime()
+        val blastResistance = block.explosionResistance
+
         val tier = when {
-            hardness >= 50.0f -> 14
-            hardness >= 25.0f -> 11
-            hardness >= 5.0f -> 8
-            hardness >= 3.0f -> 5
-            hardness >= 1.5f -> 3
+            // TIER 15: Mythic & Relic (80.0s)
+            id.contains("beacon") || id.contains("dragon_egg") || id.contains("heavy_core") ||
+            id.contains("conduit") || id.contains("vault") || id.contains("spawner") ||
+            id.contains("bedrock") || id.contains("command_block") || id.contains("end_portal") ||
+            hardness < 0 || blastResistance >= 3600000.0f -> 15
+
+            // TIER 14: Netherite & End Realm (60.0s)
+            id.contains("netherite") || id.contains("ancient_debris") || id.contains("shulker") ||
+            id.contains("ender_chest") || id.contains("end_stone") || id.contains("purpur") ||
+            id.contains("chorus") || id.contains("respawn_anchor") || id.contains("lodestone") ||
+            id.contains("sniffer_egg") || blastResistance >= 1200.0f -> 14
+
+            // TIER 13: Diamond (45.0s)
+            id.contains("diamond") || id.contains("enchanting_table") || id.contains("jukebox") ||
+            (hardness >= 5.0f && blastResistance >= 30.0f) -> 13
+
+            // TIER 12: Emerald (35.0s)
+            id.contains("emerald") -> 12
+
+            // TIER 11: Obsidian, Sculk & Deep Void (28.0s)
+            id.contains("obsidian") || id.contains("sculk") || id.contains("resin") ||
+            id.contains("reinforced_deepslate") || hardness >= 25.0f -> 11
+
+            // TIER 10: Crystal & Prism (22.0s)
+            id.contains("amethyst") || id.contains("prismarine") || id.contains("sea_lantern") ||
+            id.contains("sponge") || id.contains("tinted_glass") -> 10
+
+            // TIER 9: Quartz & Glow (17.0s)
+            id.contains("quartz") || id.contains("glowstone") || id.contains("shroomlight") ||
+            id.contains("nether_brick") || id.contains("magma") -> 9
+
+            // TIER 8: Gold (13.0s)
+            id.contains("gold") || id.contains("gilded") || id.contains("bell") -> 8
+
+            // TIER 7: Redstone (10.0s)
+            id.contains("redstone") || id.contains("piston") || id.contains("observer") ||
+            id.contains("dispenser") || id.contains("dropper") || id.contains("crafter") ||
+            id.contains("target") || id.contains("daylight") || id.contains("comparator") ||
+            id.contains("repeater") -> 7
+
+            // TIER 6: Lapis (8.0s)
+            id.contains("lapis") || id.contains("blue_ice") || id.contains("packed_ice") -> 6
+
+            // TIER 5: Iron (6.0s)
+            id.contains("iron") || id.contains("chain") || id.contains("hopper") ||
+            id.contains("anvil") || id.contains("cauldron") || id.contains("smithing") ||
+            id.contains("blast_furnace") || hardness >= 4.0f -> 5
+
+            // TIER 4: Copper & Glass (4.5s)
+            id.contains("copper") || id.contains("lightning_rod") || id.contains("glass") ||
+            id.contains("lantern") -> 4
+
+            // TIER 3: Fuel & Earth (3.5s)
+            id.contains("coal") || id.contains("charcoal") || id.contains("blackstone") ||
+            id.contains("basalt") || id.contains("clay") || id.contains("mud") ||
+            id.contains("dripstone") || id.contains("calcite") || id.contains("soul_") ||
+            hardness >= 2.0f -> 3
+
+            // TIER 2: Organic & Flora (2.5s)
+            id.contains("log") || id.contains("wood") || id.contains("stem") || id.contains("planks") ||
+            id.contains("leaves") || id.contains("sapling") || id.contains("flower") ||
+            id.contains("bamboo") || id.contains("cactus") || id.contains("cane") ||
+            id.contains("pumpkin") || id.contains("melon") || id.contains("hay") ||
+            id.contains("wool") || id.contains("moss") || id.contains("mushroom") ||
+            id.contains("vine") || id.contains("coral") || id.contains("kelp") ||
+            id.contains("crop") || id.contains("wheat") || id.contains("potato") ||
+            id.contains("carrot") || id.contains("beetroot") || (hardness <= 1.0f && hardness > 0.3f) -> 2
+
+            // TIER 1: Common (1.5s)
             else -> 1
         }
         return BlockMapping(item, tier)
