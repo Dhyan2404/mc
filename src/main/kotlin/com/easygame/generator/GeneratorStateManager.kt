@@ -1,12 +1,17 @@
 package com.easygame.generator
 
 import com.easygame.mixin.BaseSpawnerAccessor
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import net.minecraft.core.BlockPos
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
+import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.sounds.SoundEvents
@@ -20,30 +25,84 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.level.SpawnData
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.entity.SpawnerBlockEntity
+import net.minecraft.world.level.storage.LevelResource
+import java.io.File
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
 object GeneratorStateManager {
 
+    data class GeneratorKey(
+        val dimension: String,
+        val pos: BlockPos
+    )
+
     class GeneratorData(
+        var dimension: String = "minecraft:overworld",
+        var pos: BlockPos = BlockPos.ZERO,
         var storedCount: Int = 0,
         var progressTicks: Int = 0,
         var stackCount: Int = 1,
         var customItem: Item? = null,
         var customTier: BlockGenerator.RarityTier? = null,
-        var lastItem: Item? = null
+        var lastItem: Item? = null,
+        var lastTickedGameTime: Long = -1L
     )
 
-    private val activeGenerators = ConcurrentHashMap<BlockPos, GeneratorData>()
+    private val activeGenerators = ConcurrentHashMap<GeneratorKey, GeneratorData>()
+    private val GSON = GsonBuilder().setPrettyPrinting().create()
 
-    fun get(pos: BlockPos): GeneratorData? = activeGenerators[pos]
-
-    fun getOrInit(pos: BlockPos): GeneratorData {
-        return activeGenerators.computeIfAbsent(pos.immutable()) { GeneratorData() }
+    private fun makeKey(level: ServerLevel, pos: BlockPos): GeneratorKey {
+        return GeneratorKey(level.dimension().identifier().toString(), pos.immutable())
     }
 
-    fun remove(pos: BlockPos): GeneratorData? = activeGenerators.remove(pos)
+    fun get(pos: BlockPos): GeneratorData? {
+        val imm = pos.immutable()
+        return activeGenerators.entries.firstOrNull { it.key.pos == imm }?.value
+    }
+
+    fun getOrInit(level: ServerLevel, pos: BlockPos): GeneratorData {
+        val key = makeKey(level, pos)
+        val data = activeGenerators.computeIfAbsent(key) {
+            GeneratorData(
+                dimension = key.dimension,
+                pos = key.pos
+            )
+        }
+        ensureChunkForced(level, pos)
+        return data
+    }
+
+    fun remove(level: ServerLevel, pos: BlockPos): GeneratorData? {
+        val key = makeKey(level, pos)
+        val removed = activeGenerators.remove(key)
+        releaseChunkForced(level, pos)
+        return removed
+    }
+
+    fun ensureChunkForced(level: ServerLevel, pos: BlockPos) {
+        try {
+            val chunkX = pos.x shr 4
+            val chunkZ = pos.z shr 4
+            level.setChunkForced(chunkX, chunkZ, true)
+        } catch (_: Exception) {}
+    }
+
+    fun releaseChunkForced(level: ServerLevel, pos: BlockPos) {
+        try {
+            val chunkX = pos.x shr 4
+            val chunkZ = pos.z shr 4
+            val dim = level.dimension().identifier().toString()
+            val anyLeft = activeGenerators.keys.any {
+                it.dimension == dim && (it.pos.x shr 4) == chunkX && (it.pos.z shr 4) == chunkZ && it.pos != pos
+            }
+            if (!anyLeft) {
+                level.setChunkForced(chunkX, chunkZ, false)
+            }
+        } catch (_: Exception) {}
+    }
 
     fun updateSpawnerData(level: ServerLevel, pos: BlockPos, data: GeneratorData) {
         val be = level.getBlockEntity(pos)
@@ -64,11 +123,64 @@ object GeneratorStateManager {
             val state = level.getBlockState(pos)
             level.sendBlockUpdated(pos, state, state, 3)
         }
+        ensureChunkForced(level, pos)
     }
 
+    /**
+     * Catches up generated items for any ticks missed while chunk was unloaded or server was offline
+     */
+    fun catchUp(level: ServerLevel, data: GeneratorData) {
+        val currentGameTime = level.gameTime
+        if (data.lastTickedGameTime > 0L && currentGameTime > data.lastTickedGameTime + 1) {
+            val elapsedTicks = currentGameTime - data.lastTickedGameTime
+            val item = data.customItem ?: data.lastItem ?: return
+            val tier = data.customTier ?: BlockGenerator.getItemTier(item)
+            val interval = tier.intervalTicks
+
+            val totalProgress = data.progressTicks.toLong() + (elapsedTicks * data.stackCount.toLong())
+            val cycles = totalProgress / interval
+            data.progressTicks = (totalProgress % interval).toInt()
+            data.storedCount = (data.storedCount.toLong() + cycles).coerceAtMost(65536L).toInt()
+        }
+        data.lastTickedGameTime = currentGameTime
+    }
+
+    /**
+     * Global Server Tick: Executes every tick for all registered generators,
+     * EVEN WHEN THE CHUNK IS UNLOADED!
+     */
+    fun onServerTick(server: MinecraftServer) {
+        val overworld = server.overworld()
+        val currentGameTime = overworld.gameTime
+
+        for ((key, data) in activeGenerators) {
+            // Avoid double-ticking if already ticked this exact game tick
+            if (data.lastTickedGameTime == currentGameTime) continue
+            data.lastTickedGameTime = currentGameTime
+
+            val item = data.customItem ?: data.lastItem ?: continue
+            val tier = data.customTier ?: BlockGenerator.getItemTier(item)
+
+            data.progressTicks += data.stackCount
+            val interval = tier.intervalTicks
+            if (data.progressTicks >= interval) {
+                val cycles = data.progressTicks / interval
+                data.progressTicks %= interval
+
+                if (data.storedCount < 65536) {
+                    val newCount = (data.storedCount.toLong() + cycles).coerceAtMost(65536L).toInt()
+                    data.storedCount = newCount
+                }
+            }
+        }
+    }
+
+    /**
+     * Local Block Entity Tick: Executes when the chunk IS loaded to produce visual particles & sounds.
+     */
     fun tick(level: ServerLevel, pos: BlockPos) {
         val be = level.getBlockEntity(pos)
-        val data = getOrInit(pos)
+        val data = getOrInit(level, pos)
 
         // Read and sync NBT from SpawnerBlockEntity on first initialization
         if (be is SpawnerBlockEntity) {
@@ -94,6 +206,9 @@ object GeneratorStateManager {
             }
         }
 
+        // Catch-up any time that elapsed while chunk was unloaded
+        catchUp(level, data)
+
         // Determine active item, tier, and status
         val item: Item
         val tier: BlockGenerator.RarityTier
@@ -118,8 +233,9 @@ object GeneratorStateManager {
         }
 
         data.lastItem = item
+        data.lastTickedGameTime = level.gameTime
 
-        // ACCELERATION: Stack count directly multiplies generation rate!
+        // Advance progress
         data.progressTicks += data.stackCount
         val interval = tier.intervalTicks
 
@@ -183,7 +299,7 @@ object GeneratorStateManager {
     }
 
     fun stackGenerator(player: ServerPlayer, level: ServerLevel, pos: BlockPos, heldStack: ItemStack): Boolean {
-        val data = getOrInit(pos)
+        val data = getOrInit(level, pos)
 
         // If sneaking, add entire hand stack; otherwise add 1
         val countToAdd = if (player.isShiftKeyDown) heldStack.count else 1
@@ -222,7 +338,7 @@ object GeneratorStateManager {
         val targetItem = heldStack.item
         if (targetItem == Items.AIR) return false
 
-        val data = getOrInit(pos)
+        val data = getOrInit(level, pos)
         val tier = BlockGenerator.getItemTier(targetItem)
         data.customItem = targetItem
         data.customTier = tier
@@ -256,8 +372,10 @@ object GeneratorStateManager {
             return configureItem(player, level, pos, heldStack)
         }
 
-        // 3. Normal Right click -> Inspect & Collect generated resources
-        val data = getOrInit(pos)
+        // 3. Normal Right click -> Catch-up & Inspect & Collect generated resources
+        val data = getOrInit(level, pos)
+        catchUp(level, data)
+
         val activeItem = data.customItem ?: data.lastItem ?: run {
             val res = BlockGenerator.checkSurroundings(level, pos)
             if (res.isActive) res.item else null
@@ -326,7 +444,7 @@ object GeneratorStateManager {
     }
 
     fun handleBreak(level: ServerLevel, player: ServerPlayer, pos: BlockPos, hasSilkTouch: Boolean): Boolean {
-        val data = remove(pos)
+        val data = remove(level, pos)
 
         // Read NBT if data wasn't in memory
         var stackCount = data?.stackCount ?: 1
@@ -400,7 +518,7 @@ object GeneratorStateManager {
         } else {
             if (stackCount > 0) {
                 player.sendSystemMessage(
-                    Component.literal("§c⚠ Generator broken without Silk Touch! Stored items dropped, but Spawner was lost. Use Silk Touch next time to recover all ${stackCount}x generators!")
+                    Component.literal("§c⚠ Generator broken without Silk Touch! Stored items dropped, but Spawners were destroyed. Use Silk Touch next time to recover all ${stackCount}x generators!")
                 )
             }
             return true // Allow vanilla break
@@ -408,7 +526,7 @@ object GeneratorStateManager {
     }
 
     fun onSpawnerBroken(level: ServerLevel, pos: BlockPos) {
-        val data = remove(pos)
+        val data = remove(level, pos)
         if (data != null && data.storedCount > 0 && data.lastItem != null) {
             var remaining = data.storedCount
             val item = data.lastItem!!
@@ -420,5 +538,95 @@ object GeneratorStateManager {
                 remaining -= batchSize
             }
         }
+    }
+
+    /**
+     * File persistence: Save all active generators so they persist across server restarts
+     */
+    fun saveGenerators(server: MinecraftServer) {
+        try {
+            val file = getSaveFile(server)
+            val jsonArray = JsonArray()
+            for ((key, data) in activeGenerators) {
+                val obj = JsonObject()
+                obj.addProperty("dim", key.dimension)
+                obj.addProperty("x", key.pos.x)
+                obj.addProperty("y", key.pos.y)
+                obj.addProperty("z", key.pos.z)
+                obj.addProperty("stack", data.stackCount)
+                obj.addProperty("stored", data.storedCount)
+                obj.addProperty("progress", data.progressTicks)
+                obj.addProperty("lastGameTime", data.lastTickedGameTime)
+                if (data.customItem != null) {
+                    obj.addProperty("item", BuiltInRegistries.ITEM.getKey(data.customItem!!).toString())
+                } else if (data.lastItem != null) {
+                    obj.addProperty("item", BuiltInRegistries.ITEM.getKey(data.lastItem!!).toString())
+                }
+                jsonArray.add(obj)
+            }
+            file.parentFile?.mkdirs()
+            file.writeText(GSON.toJson(jsonArray), StandardCharsets.UTF_8)
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * File persistence: Load saved generators on server boot and restore chunk forced tickets
+     */
+    fun loadSavedGenerators(server: MinecraftServer) {
+        try {
+            val file = getSaveFile(server)
+            if (!file.exists()) return
+
+            val text = file.readText(StandardCharsets.UTF_8)
+            val element = JsonParser.parseString(text)
+            if (!element.isJsonArray) return
+
+            val array = element.asJsonArray
+            for (itemElement in array) {
+                if (!itemElement.isJsonObject) continue
+                val obj = itemElement.asJsonObject
+
+                val dim = obj.get("dim")?.asString ?: "minecraft:overworld"
+                val x = obj.get("x")?.asInt ?: 0
+                val y = obj.get("y")?.asInt ?: 0
+                val z = obj.get("z")?.asInt ?: 0
+                val pos = BlockPos(x, y, z)
+
+                val key = GeneratorKey(dim, pos)
+                val data = GeneratorData(
+                    dimension = dim,
+                    pos = pos,
+                    stackCount = obj.get("stack")?.asInt ?: 1,
+                    storedCount = obj.get("stored")?.asInt ?: 0,
+                    progressTicks = obj.get("progress")?.asInt ?: 0,
+                    lastTickedGameTime = obj.get("lastGameTime")?.asLong ?: -1L
+                )
+
+                if (obj.has("item")) {
+                    val itemIdStr = obj.get("item").asString
+                    val id = Identifier.tryParse(itemIdStr)
+                    if (id != null) {
+                        val item = BuiltInRegistries.ITEM.getValue(id)
+                        if (item != Items.AIR) {
+                            data.customItem = item
+                            data.customTier = BlockGenerator.getItemTier(item)
+                        }
+                    }
+                }
+
+                activeGenerators[key] = data
+
+                // Find matching server level and ensure chunk is forced
+                val targetLevel = server.allLevels.find { it.dimension().identifier().toString() == dim } ?: server.overworld()
+                ensureChunkForced(targetLevel, pos)
+                // Catch-up any time that elapsed while the server was offline
+                catchUp(targetLevel, data)
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun getSaveFile(server: MinecraftServer): File {
+        val rootDir = server.getWorldPath(LevelResource.ROOT).toFile()
+        return File(rootDir, "easygame_generators.json")
     }
 }

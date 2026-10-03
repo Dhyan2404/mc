@@ -8,6 +8,8 @@ import com.easygame.trade.TradeHelper
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.fabricmc.fabric.api.event.player.UseBlockCallback
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking
@@ -145,7 +147,7 @@ object EasyGame : ModInitializer {
                     level.server.execute {
                         val placedBe = level.getBlockEntity(placePos)
                         if (placedBe is SpawnerBlockEntity) {
-                            val data = com.easygame.generator.GeneratorStateManager.getOrInit(placePos)
+                            val data = com.easygame.generator.GeneratorStateManager.getOrInit(level, placePos)
                             data.customItem = genItem
                             data.customTier = com.easygame.generator.BlockGenerator.getItemTier(genItem)
                             data.stackCount = stackLevel
@@ -164,6 +166,19 @@ object EasyGame : ModInitializer {
                 return@register com.easygame.generator.GeneratorStateManager.handleBreak(world, player, pos, silkTouch)
             }
             true
+        }
+
+        // Global generator ticking across all dimensions even when chunks are unloaded!
+        ServerTickEvents.END_SERVER_TICK.register { server ->
+            com.easygame.generator.GeneratorStateManager.onServerTick(server)
+        }
+
+        // Server lifecycle: Load generators on boot & save on shutdown
+        ServerLifecycleEvents.SERVER_STARTED.register { server ->
+            com.easygame.generator.GeneratorStateManager.loadSavedGenerators(server)
+        }
+        ServerLifecycleEvents.SERVER_STOPPING.register { server ->
+            com.easygame.generator.GeneratorStateManager.saveGenerators(server)
         }
     }
 

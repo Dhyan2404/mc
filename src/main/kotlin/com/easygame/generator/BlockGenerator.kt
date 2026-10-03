@@ -28,23 +28,23 @@ object BlockGenerator {
         val intervalSeconds: Double get() = intervalTicks / 20.0
     }
 
-    // 15 distinct rarity tiers with progressive generation intervals
+    // 15 distinct rarity tiers with ultra-fast progressive generation intervals
     val TIERS = mapOf(
-        1 to RarityTier(1, "Common", "§7", 30),        // 1.5s
-        2 to RarityTier(2, "Organic", "§a", 50),       // 2.5s
-        3 to RarityTier(3, "Fuel & Earth", "§8", 70),  // 3.5s
-        4 to RarityTier(4, "Copper & Glass", "§6", 90),// 4.5s
-        5 to RarityTier(5, "Iron", "§f", 120),         // 6.0s
-        6 to RarityTier(6, "Lapis", "§9", 160),        // 8.0s
-        7 to RarityTier(7, "Redstone", "§c", 200),     // 10.0s
-        8 to RarityTier(8, "Gold", "§e", 260),         // 13.0s
-        9 to RarityTier(9, "Quartz & Glow", "§d", 340),// 17.0s
-        10 to RarityTier(10, "Crystal & Prism", "§5", 440), // 22.0s
-        11 to RarityTier(11, "Obsidian & Resin", "§1", 560), // 28.0s
-        12 to RarityTier(12, "Emerald", "§2", 700),     // 35.0s
-        13 to RarityTier(13, "Diamond", "§b", 900),     // 45.0s
-        14 to RarityTier(14, "Netherite & End", "§4", 1200), // 60.0s
-        15 to RarityTier(15, "Mythic & Relic", "§6§l", 1600)  // 80.0s
+        1 to RarityTier(1, "Common", "§7", 10),         // 0.5s (was 1.5s)
+        2 to RarityTier(2, "Organic", "§a", 14),        // 0.7s (was 2.5s)
+        3 to RarityTier(3, "Fuel & Earth", "§8", 18),   // 0.9s (was 3.5s)
+        4 to RarityTier(4, "Copper & Glass", "§6", 22), // 1.1s (was 4.5s)
+        5 to RarityTier(5, "Iron", "§f", 28),          // 1.4s (was 6.0s)
+        6 to RarityTier(6, "Lapis", "§9", 34),         // 1.7s (was 8.0s)
+        7 to RarityTier(7, "Redstone", "§c", 40),      // 2.0s (was 10.0s)
+        8 to RarityTier(8, "Gold", "§e", 50),          // 2.5s (was 13.0s)
+        9 to RarityTier(9, "Quartz & Glow", "§d", 60), // 3.0s (was 17.0s)
+        10 to RarityTier(10, "Crystal & Prism", "§5", 75), // 3.75s (was 22.0s)
+        11 to RarityTier(11, "Obsidian & Resin", "§1", 90), // 4.5s (was 28.0s)
+        12 to RarityTier(12, "Emerald", "§2", 110),     // 5.5s (was 35.0s)
+        13 to RarityTier(13, "Diamond", "§b", 140),     // 7.0s (was 45.0s)
+        14 to RarityTier(14, "Netherite & End", "§4", 180), // 9.0s (was 60.0s)
+        15 to RarityTier(15, "Mythic & Relic", "§6§l", 240)  // 12.0s (was 80.0s)
     )
 
     fun getTierGlowColor(tier: Int): Int {
