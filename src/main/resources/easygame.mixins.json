@@ -11,6 +11,7 @@
 		"MerchantOfferMixin",
 		"MerchantResultSlotMixin",
 		"VaultServerDataMixin",
+		"BaseSpawnerAccessor",
 		"VillagerMixin",
 		"LevelSummaryMixin"
 	],

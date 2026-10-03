@@ -29,6 +29,7 @@ import java.util.*;
 public class TradeHelper {
 
     public static final List<Item> ARMOR_TRIM_TEMPLATES = List.of(
+            Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE,
             Items.COAST_ARMOR_TRIM_SMITHING_TEMPLATE,
             Items.DUNE_ARMOR_TRIM_SMITHING_TEMPLATE,
             Items.EYE_ARMOR_TRIM_SMITHING_TEMPLATE,

@@ -3,8 +3,9 @@ package com.easygame.client.mixin;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.DebugScreenOverlay;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -19,14 +20,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class GuiMixin {
 
     @Shadow
-    private Minecraft minecraft;
+    public abstract Font getFont();
 
     @Shadow
-    public abstract Font getFont();
+    public abstract boolean isHidden();
+
+    @Shadow
+    public abstract DebugScreenOverlay getDebugOverlay();
 
     @Unique
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("hh:mm:ss a");
@@ -75,18 +79,19 @@ public abstract class GuiMixin {
 
     @Inject(method = "extractRenderState", at = @At("RETURN"), require = 0)
     private void onExtractRenderState(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (this.minecraft == null || this.minecraft.options.hideGui) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null || this.isHidden()) {
             return;
         }
 
-        if (this.minecraft.getDebugOverlay() != null && this.minecraft.getDebugOverlay().showDebugScreen()) {
+        if (this.getDebugOverlay() != null && this.getDebugOverlay().showDebugScreen()) {
             return;
         }
 
         Font font = this.getFont();
         if (font == null) return;
 
-        int screenWidth = this.minecraft.getWindow().getGuiScaledWidth();
+        int screenWidth = minecraft.getWindow().getGuiScaledWidth();
         long nowMs = System.currentTimeMillis();
 
         // 1. REAL-WORLD TIME (1-second cached refresh: 0 GC impact)
@@ -96,7 +101,7 @@ public abstract class GuiMixin {
         }
 
         // 2. SMALL, COMPACT TOP-RIGHT FPS PILL BADGE
-        int fps = this.minecraft.getFps();
+        int fps = minecraft.getFps();
         if (fps != lastFps || cachedFpsWidth == 0) {
             lastFps = fps;
             String fpsColor = fps >= 60 ? "§a" : (fps >= 30 ? "§e" : "§c");
@@ -117,7 +122,7 @@ public abstract class GuiMixin {
         extractor.text(font, cachedFpsText, fpsX, fpsY, 0xFFFFFFFF, true);
 
         // 3. SMALL, COMPACT TOP-LEFT HUD CARD (Position, Biome, Time)
-        LocalPlayer player = this.minecraft.player;
+        LocalPlayer player = minecraft.player;
         int cardLeft = 4;
         int cardTop = 4;
         int cardPaddingH = 4;

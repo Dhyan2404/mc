@@ -91,7 +91,7 @@ public abstract class MerchantScreenMixin extends AbstractContainerScreen<Mercha
                 EasyGameClient.INSTANCE.requestArmorTrims();
             })
             .bounds(this.leftPos + 219, this.topPos + 58, 49, 20)
-            .tooltip(Tooltip.create(Component.literal("§bArmor Trims§7: Adds all 18 rare Armor Trims to Toolsmith trades.")))
+            .tooltip(Tooltip.create(Component.literal("§bSmithing Templates & Trims§7: Adds all 18 Armor Trims & Netherite Upgrade Template to Toolsmith trades.")))
             .build();
             this.addRenderableWidget(trimButton);
         } else {

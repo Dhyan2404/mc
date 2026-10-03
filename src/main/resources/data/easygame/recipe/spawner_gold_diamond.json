@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": "minecraft:diamond",
+    "G": "minecraft:gold_ingot"
+  },
+  "pattern": [
+    "GDG",
+    "D D",
+    "GDG"
+  ],
+  "result": {
+    "count": 1,
+    "id": "minecraft:spawner"
+  }
+}
