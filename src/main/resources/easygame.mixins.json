@@ -13,7 +13,9 @@
 		"VaultServerDataMixin",
 		"BaseSpawnerAccessor",
 		"VillagerMixin",
-		"LevelSummaryMixin"
+		"LevelSummaryMixin",
+		"LivingEntityMixin",
+		"SpawnerBlockEntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
